@@ -45,6 +45,7 @@ apps/api         tRPC server on the standalone Node HTTP adapter
 packages/db      Drizzle schema, generated SQL migrations (drizzle/), seed script and catalogue data
 packages/shared  zod schemas, enum lists and types used by both web and api
 docs/            brief, AI log
+scripts/         explain-search.ts: EXPLAIN ANALYZE for the real search query
 AGENTS.md        instructions for coding agents (CLAUDE.md imports it)
 GLOSSARY.md      domain terms
 ```
@@ -84,7 +85,7 @@ materials     (id, material_number unique, description, type enum, manufacturer_
 
 The input is trimmed and split on whitespace. Every word must match (AND) at least one of material number, description or MPN (OR), with `ILIKE '%word%'`. So `6205 deep` finds deep groove ball bearings with 6205 in the MPN. `\`, `%` and `_` are escaped so a user's `%` matches only itself.
 
-I chose this over Postgres full-text search because the hard cases here are part numbers (`6205-2RS1`, `MAT-000123`), which full-text tokenising and stemming handle badly, and substring matching is what a planner expects. The cost is that `'%word%'` can't use a btree index, so each search is a sequential scan. At 10,000 rows the brief's demo query runs in about 1.5 ms (`EXPLAIN ANALYZE`), so that is fine for now; trigram indexes are the fix when it isn't (see below). Manufacturer _name_ is not searched, because the brief asks for number, description and MPN and the manufacturer filter covers it.
+I chose this over Postgres full-text search because the hard cases here are part numbers (`6205-2RS1`, `MAT-000123`), which full-text tokenising and stemming handle badly, and substring matching is what a planner expects. The cost is that `'%word%'` can't use a btree index, so without help each search is a sequential scan. At 10,000 rows the brief's demo query runs in about 1.5 ms (`EXPLAIN ANALYZE`), which is fine; trigram indexes keep it fast at larger sizes (see [Faster search](#faster-search)). Manufacturer _name_ is not searched, because the brief asks for number, description and MPN and the manufacturer filter covers it.
 
 ### Pagination: offset plus `count(*)`
 
@@ -104,9 +105,10 @@ Offset gets slower the deeper you page, because Postgres still walks and discard
 | `materials_unit_price_idx`                   | Sorting by unit price                                                   |
 | `materials_stock_on_hand_idx`                | Sorting by stock                                                        |
 | `materials_updated_at_idx`                   | Sorting by last updated                                                 |
+| `materials_*_trgm_idx` (GIN, `pg_trgm`)      | Search: `ILIKE '%word%'` on material number, description and MPN        |
 | `plants.code`, `manufacturers.slug` (unique) | Looking up the filter values the URL carries                            |
 
-The rule (from `AGENTS.md`) is that every filtered or sorted column gets an index in `schema.ts`. Single-column btrees are the plain choice: the planner can combine them, and with only a few distinct types and statuses Postgres will often prefer a scan anyway at this size. Composite indexes would come from measuring real query patterns, not guessing. Search columns don't have indexes yet because `ILIKE '%…%'` can't use a btree.
+The rule (from `AGENTS.md`) is that every filtered or sorted column gets an index in `schema.ts`. Single-column btrees are the plain choice: the planner can combine them, and with only a few distinct types and statuses Postgres will often prefer a scan anyway at this size. Composite indexes would come from measuring real query patterns, not guessing. `ILIKE '%…%'` can't use a btree, so the three search columns get trigram indexes instead (see [Faster search](#faster-search)).
 
 ### Per-run test databases
 
@@ -120,9 +122,65 @@ Skeleton rows on first load. When the query changes, the previous rows stay on s
 
 Web and API are both TypeScript in one repo, so tRPC gives end-to-end types without writing or generating an API spec, and the zod schema is the single definition of valid input. The trade-off is that it is a TypeScript-only RPC API; a public API for other clients would be REST or OpenAPI.
 
-## Performance: trigram search
+## Faster search
 
-The one optional extra I picked: `pg_trgm` GIN indexes on material number, description and MPN, measured with `EXPLAIN ANALYZE` before and after. Tracked in [#10](https://github.com/Danzo2/lexin-material-register/issues/10); the results will go here.
+The one optional extra I picked: Postgres trigram indexes, so `ILIKE '%word%'` search doesn't have to read every row.
+
+**What changed.** Migration `0002_pg_trgm` (hand-written, because Drizzle can't declare extensions) runs `create extension if not exists pg_trgm`. Migration `0003_search_trgm_indexes` is generated from `schema.ts` and adds three GIN indexes with the `gin_trgm_ops` operator class, on material number, description and MPN. The search code didn't change: Postgres uses the indexes for the same `ILIKE` conditions, and the existing search tests pass untouched.
+
+**How it works.** `pg_trgm` breaks text into three-character pieces (`bearing` → `bea`, `ear`, `ari`, …). The GIN index maps each trigram to the rows that contain it. For `ILIKE '%bearing%'`, Postgres looks up the trigrams of `bearing`, intersects the row lists, and rechecks only those rows against the real condition. Our search ORs three columns per word and ANDs the words, which becomes a `BitmapOr` of three index scans per word, combined with `BitmapAnd`.
+
+### Measurement
+
+Method: a throwaway database with `SEED_ROWS=200000` (Postgres 17.12 in Docker on an Apple Silicon laptop). "Before" was migrated with `main`'s migrations, "after" with this branch's, with `analyze` after each. [`scripts/explain-search.ts`](scripts/explain-search.ts) calls the real `listMaterials()` and uses Postgres's bundled `auto_explain` module to print `EXPLAIN (ANALYZE, BUFFERS)` for the exact SQL it sends: the page query and the `count(*)` query, which run in parallel. It does one warm-up run and prints the second. Each figure is the middle of three runs, default sort (material number) and page size 50.
+
+```bash
+DATABASE_URL=postgres://lexin:lexin@localhost:5432/<throwaway db> \
+  pnpm --filter @lexin/api exec tsx ../../scripts/explain-search.ts "bearing 6205"
+```
+
+| Search         | Matches | Page query: before → after | `count(*)`: before → after | Index used?                     |
+| -------------- | ------: | -------------------------- | -------------------------- | ------------------------------- |
+| `bearing 6205` |     496 | 66.2 ms → 7.7 ms           | 79.8 ms → 7.3 ms           | Yes, both queries               |
+| `6205`         |     530 | 20.3 ms → 22.2 ms          | 46.3 ms → 1.1 ms           | Count only (see below)          |
+| `62`           |  20,043 | 0.7 ms → 0.6 ms            | 43.4 ms → 45.4 ms          | No: too short to have a trigram |
+
+For the brief-style search `bearing 6205`, both queries are about 10× faster and read 6× fewer buffers (3,347 → 557 for the count). The `count(*)` plans (one run each), trimmed to the scan of `materials` (the full plans also show the joins to `plants` and `manufacturers`):
+
+Before: a parallel sequential scan of all 200,000 rows.
+
+```
+Parallel Seq Scan on materials  (actual time=1.995..75.670 rows=165 loops=3)
+  Filter: ((material_number ~~* '%bearing%' OR description ~~* '%bearing%' OR mpn ~~* '%bearing%')
+       AND (material_number ~~* '%6205%' OR description ~~* '%6205%' OR mpn ~~* '%6205%'))
+  Rows Removed by Filter: 66501
+  Buffers: shared hit=3217
+Execution: 79.8 ms
+```
+
+After: three index lookups per word, intersected, then 454 heap pages rechecked.
+
+```
+Bitmap Heap Scan on materials  (actual time=4.944..6.177 rows=496 loops=1)
+  Heap Blocks: exact=454
+  Buffers: shared hit=555
+  ->  BitmapAnd  (actual time=4.889..4.890 rows=0 loops=1)
+        ->  BitmapOr
+              ->  Bitmap Index Scan on materials_material_number_trgm_idx  (rows=40)    '%6205%'
+              ->  Bitmap Index Scan on materials_description_trgm_idx      (rows=0)     '%6205%'
+              ->  Bitmap Index Scan on materials_mpn_trgm_idx              (rows=490)   '%6205%'
+        ->  BitmapOr
+              ->  Bitmap Index Scan on materials_material_number_trgm_idx  (rows=0)     '%bearing%'
+              ->  Bitmap Index Scan on materials_description_trgm_idx      (rows=32384) '%bearing%'
+              ->  Bitmap Index Scan on materials_mpn_trgm_idx              (rows=0)     '%bearing%'
+Execution: 6.4 ms
+```
+
+**Why `6205`'s page query didn't speed up.** With one word, the planner estimates 1,850 matches (there are 530) and decides it is cheaper to walk the material-number btree in sort order and stop after 50 matches than to collect every match and sort. It reads 26,000 rows to find 50, about 22 ms either way. The `count(*)` must find every match, so it uses the trigram indexes and drops from 46 ms to 1 ms. Since the two queries run in parallel, the request goes from about 46 ms to about 22 ms.
+
+**Why 1–2 character terms can't use the index.** A trigram index can only look up trigrams that the search term contains. `show_trgm('62')` returns `"  6"`, `" 62"` and `"62 "`, but those padded trigrams assume `62` is a whole word. Inside `'%62%'` the term can sit in the middle of a word (`6205`, `MAT-000362`), so `pg_trgm` can only use trigrams made of three real characters, and `62` has none. The index would have to return every row, so Postgres scans the table, as before. In practice a 1–2 character term matches a large share of the catalogue anyway (20,043 rows for `62`), so a scan is the right plan, and the default sort still finds the first page quickly.
+
+**The cost.** The three indexes take 23.5 MB at 200,000 rows (13 MB for description), close to the 25 MB table itself. Every insert or update maintains them: seeding 200,000 rows went from 9.8 s to 14.7 s (one run each). For a catalogue that is read far more than it is written, as here, that is a good trade.
 
 ## What I'd do next
 
