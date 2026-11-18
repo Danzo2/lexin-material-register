@@ -14,7 +14,7 @@ apps/web         React Router v7 SPA (data mode, createBrowserRouter) + Vite + s
 apps/api         tRPC v11 on the standalone Node HTTP adapter. Routers, procedures, query logic.
 packages/db      Drizzle schema (src/schema.ts), generated SQL migrations (drizzle/), seed script.
 packages/shared  zod schemas, enum value lists and inferred types used by BOTH web and api.
-docs/            brief.md (+ brief.docx), ai-log.md, tickets/
+docs/            brief.md (+ brief.docx), ai-log.md. Spec and tickets live in GitHub Issues.
 ```
 
 Workspace packages export TypeScript source directly (no build step). Import local files with an explicit `.ts`/`.tsx` extension. In `apps/web`, `@/` maps to `apps/web/src`.
@@ -24,7 +24,7 @@ Workspace packages export TypeScript source directly (no build step). Import loc
 | Task                                 | Command                                                                                           |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | First run                            | `cp .env.example .env && pnpm install && docker compose up -d && pnpm db:migrate && pnpm db:seed` |
-| Dev (web :5173, api :3001)           | `pnpm dev`                                                                                        |
+| Dev (web :5173, api :3001)           | `pnpm dev` (override with `WEB_PORT` / `API_PORT`)                                                |
 | Generate migration after schema edit | `pnpm db:generate` (commit the SQL in `packages/db/drizzle/`)                                     |
 | Apply migrations / seed              | `pnpm db:migrate` / `pnpm db:seed`                                                                |
 | Typecheck / lint / format / test     | `pnpm typecheck` / `pnpm lint` / `pnpm format:check` / `pnpm test`                                |
@@ -63,7 +63,7 @@ The URL is the single source of truth for the table. No `useState` copy of filte
 
 ## Testing
 
-- Vitest. Tests sit beside the code as `*.test.ts`.
+- Vitest. Tests sit beside the code as `*.test.ts`. API tests need Docker Postgres running: each run creates its own throwaway database, so parallel worktrees never collide.
 - Must have: the list-input schema (defaults, coercion of URL strings, rejection of bad values) and the query builder (search/filter/sort produce the right rows against a real Postgres).
 - Write the failing test first when fixing a bug. Don't mock the database for query tests.
 - Don't chase coverage. A few meaningful tests beat many shallow ones.
@@ -84,14 +84,16 @@ Never claim something works without having run it. If a check could not be run, 
 
 - Never push to `main`. Branch per ticket: `feat/T<nn>-short-slug` (also `fix/`, `docs/`, `chore/`).
 - Commits: Conventional Commits with emoji, imperative, subject under 72 chars, no trailing period. E.g. `feat: ✨ add materials list procedure`, `fix: 🐛 reset page when filters change`, `docs: 📝 …`, `chore: 🔧 …`, `test: ✅ …`, `perf: ⚡️ …`, `refactor: ♻️ …`. Breaking changes use a `BREAKING CHANGE:` footer, never `!`.
-- Write PR titles and bodies with the `/pr` skill. Open as ready for review. List checks run, the manual browser check, and any gaps.
+- Write PR titles and bodies with the `/pr` skill. Open as ready for review. List checks run, the manual browser check, and any gaps. Put `Closes #<issue>` in the body.
+- Label every PR `agent-assisted`. No AI `Co-Authored-By` trailers in commits and no "Generated with" footers in PRs.
 - Before requesting review, run the `/code-review` skill against the branch's merge-base and fix blocking findings.
+- Codex review: `codex review --base origin/main` from the branch. Post its findings as a PR comment.
 - Squash-merge only after checks pass and the Codex review passes on the final head.
 
 ## Working as a team of agents
 
-- **Orchestrator** (the main session) reads the brief, plans, and splits work into tickets in `docs/tickets/T<nn>-<slug>.md`. Each ticket states its goal, acceptance criteria and the **files or folders it may touch**. The orchestrator merges, resolves conflicts and keeps this file current.
-- **Ticket sessions** are forked sessions. Each takes exactly one ticket on its own branch, in its own git worktree, and opens one PR.
+- **Orchestrator** (the main session) owns the spec issue ([#1](https://github.com/Danzo2/lexin-material-register/issues/1)) and its implementation sub-issues, labelled `implementation`, with native "blocked by" edges. Each ticket states its goal, acceptance criteria, the **files or folders it may touch**, its branch and its dev ports. The orchestrator merges, resolves conflicts and keeps this file current.
+- **Ticket sessions** take exactly one unblocked ticket: assign it to yourself, then `git worktree add ../lexin-worktrees/T<nn> -b <branch> origin/main`, `cp` the main checkout's `.env` into it, `pnpm install`, and run `pnpm dev` with the ticket's `WEB_PORT`/`API_PORT` so parallel sessions don't clash. One PR per ticket.
 - **Stay in scope.** A session never edits files outside its ticket's scope. If it needs a change elsewhere (e.g. a new field in `packages/shared`), it stops and reports to the orchestrator, who adds or amends a ticket.
 - **Log corrections.** Whenever a session corrects itself or is corrected (wrong API, bad assumption, failing check it initially missed), it appends an entry to [`docs/ai-log.md`](docs/ai-log.md) in its PR.
 - **Codex reviews every PR before merge**, against the ticket's acceptance criteria and this file. Blocking findings are fixed and re-reviewed on the new head.
