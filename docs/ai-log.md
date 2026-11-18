@@ -41,3 +41,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** Reading the `package.json` diff after the generator ran; the failing Vitest run for the date test.
 - **Correction:** Removed the `cn` package, pointed the generated components at `@/lib/utils.ts` (with explicit `.tsx`/`.ts` extensions per AGENTS.md), and changed the test to a month whose abbreviation is unambiguous.
 - **Lesson:** Always review dependency diffs from code generators before committing; don't hard-code locale output without running it.
+
+## 2026-11-19 · T01 · Codex (review of Claude Code)
+
+- **What went wrong:** Claude Code added the first real database procedures without sanitising errors. A failed query returned Drizzle's "Failed query: select …" message and the stack trace to the browser, which the error state would then display. This breaks the AGENTS.md rule never to leak SQL or stack traces.
+- **How it was caught:** `codex review` (P2), confirmed with `curl` against a database with no tables.
+- **Correction:** `apps/api/src/trpc.ts` now sets `isDev: false` and an `errorFormatter` that replaces `INTERNAL_SERVER_ERROR` messages with "Internal server error". The server still logs the full error.
+- **Lesson:** When adding the first procedure that touches the database, probe its failure path as well as its happy path.
