@@ -45,53 +45,63 @@ const motorKw = [
 
 const bearingBores = [15, 17, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100] as const;
 
-// One category per bearing kind, because each kind has its own MPN series
-// (deep groove 62xx/63xx, spherical 222xx, cylindrical NU2xx, ...).
-function bearing(kind: string, weight: number, makers: readonly Maker[]): Category {
-  return {
-    key: `bearing-${kind.replaceAll(" ", "-")}`,
-    weight,
-    type: "spare_part",
-    unitOfMeasure: "EA",
-    makers,
-    price: { min: 12, max: 850 },
-    stock: { min: 0, max: 400 },
-    describe: () => `Bearing, ${kind}, ${pick(bearingBores)}mm bore`,
-  };
+// ISO bore code, the last two digits of most bearing numbers: 6205 has a 25mm bore.
+function boreCode(bore: number): string {
+  if (bore === 15) return "02";
+  if (bore === 17) return "03";
+  return String(bore / 5).padStart(2, "0");
 }
 
-/** The demo query's category: SKF makes it, and "bearing" matches its descriptions. */
-export const bearingCategory = bearing("deep groove ball", 5, [
-  maker("skf", "62##-2RS1", "63##-2Z/C3", "60##-2Z"),
-  maker("nsk", "62##DDU", "63##ZZC3"),
-  maker("fag", "62##-2RSR", "63##-2Z-C3"),
-  maker("ntn", "62##LLU", "63##ZZ/2AS"),
+// One category per bearing kind and bore, so each MPN series matches the kind
+// (deep groove 62xx, spherical 222xx, ...) and "{bore}" in a pattern becomes
+// the matching bore code. The kind's weight is shared across its bores.
+function bearings(kind: string, weight: number, makers: readonly Maker[]): Category[] {
+  return bearingBores.map((bore) => ({
+    key: `bearing-${kind.replaceAll(" ", "-")}-${bore}`,
+    weight: weight / bearingBores.length,
+    type: "spare_part",
+    unitOfMeasure: "EA",
+    makers: makers.map((m) =>
+      maker(m.slug, ...m.mpnPatterns.map((p) => p.replaceAll("{bore}", boreCode(bore)))),
+    ),
+    price: { min: 12, max: 850 },
+    stock: { min: 0, max: 400 },
+    describe: () => `Bearing, ${kind}, ${bore}mm bore`,
+  }));
+}
+
+/** The demo query's categories: SKF makes them, and "bearing" matches their descriptions. */
+export const deepGrooveBearings = bearings("deep groove ball", 5, [
+  maker("skf", "62{bore}-2RS1", "63{bore}-2Z/C3", "60{bore}-2Z"),
+  maker("nsk", "62{bore}DDU", "63{bore}ZZC3"),
+  maker("fag", "62{bore}-2RSR", "63{bore}-2Z-C3"),
+  maker("ntn", "62{bore}LLU", "63{bore}ZZ/2AS"),
 ]);
 
 export const categories: readonly Category[] = [
-  bearingCategory,
-  bearing("taper roller", 3, [
+  ...deepGrooveBearings,
+  ...bearings("taper roller", 3, [
     maker("timken", "LM1####", "HM2####", "JL6####"),
-    maker("skf", "322##/Q", "302##J2/Q"),
-    maker("nsk", "HR322##J"),
-    maker("ntn", "4T-322##"),
+    maker("skf", "322{bore}/Q", "302{bore}J2/Q"),
+    maker("nsk", "HR322{bore}J"),
+    maker("ntn", "4T-322{bore}"),
   ]),
-  bearing("spherical roller", 2, [
-    maker("skf", "222## E", "223## E"),
-    maker("fag", "222##-E1-XL"),
-    maker("nsk", "222##EAE4"),
-    maker("timken", "222##EJW33"),
+  ...bearings("spherical roller", 2, [
+    maker("skf", "222{bore} E", "223{bore} E"),
+    maker("fag", "222{bore}-E1-XL"),
+    maker("nsk", "222{bore}EAE4"),
+    maker("timken", "222{bore}EJW33"),
   ]),
-  bearing("cylindrical roller", 2, [
-    maker("skf", "NU2## ECP", "NJ3## ECJ"),
-    maker("nsk", "NJ2##EW"),
-    maker("fag", "NU2##-E-XL-TVP2"),
-    maker("ntn", "NU2##EG1"),
+  ...bearings("cylindrical roller", 2, [
+    maker("skf", "NU2{bore} ECP", "NJ3{bore} ECJ"),
+    maker("nsk", "NJ2{bore}EW"),
+    maker("fag", "NU2{bore}-E-XL-TVP2"),
+    maker("ntn", "NU2{bore}EG1"),
   ]),
-  bearing("angular contact ball", 2, [
-    maker("skf", "72## BECBP", "73## BECBM"),
-    maker("fag", "72##-B-XL-TVP"),
-    maker("nsk", "72##BW"),
+  ...bearings("angular contact ball", 2, [
+    maker("skf", "72{bore} BECBP", "73{bore} BECBM"),
+    maker("fag", "72{bore}-B-XL-TVP"),
+    maker("nsk", "72{bore}BW"),
   ]),
   {
     key: "bearing-unit",

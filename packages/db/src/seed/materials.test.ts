@@ -85,6 +85,18 @@ describe("buildMaterial", () => {
     }
   });
 
+  it("writes the described bore into deep groove bearing MPNs (6205 = 25mm)", () => {
+    const deepGroove = sample().filter(
+      (r) => r.manufacturerSlug === "skf" && r.description.startsWith("Bearing, deep groove ball"),
+    );
+    expect(deepGroove.length).toBeGreaterThan(0);
+    for (const row of deepGroove) {
+      const bore = Number(/(\d+)mm bore/.exec(row.description)?.[1]);
+      const code = bore === 15 ? "02" : bore === 17 ? "03" : String(bore / 5).padStart(2, "0");
+      expect(row.mpn.slice(2, 4)).toBe(code);
+    }
+  });
+
   it("guarantees active SKF bearings at Brisbane for the demo query", () => {
     const demoRows = sample().filter(
       (r) =>

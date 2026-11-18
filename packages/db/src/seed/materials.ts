@@ -2,8 +2,8 @@
 // faker seed, so every machine gets the same rows.
 import { faker } from "@faker-js/faker";
 import type { MaterialStatus, MaterialType } from "@lexin/shared";
-import { bearingCategory, categories } from "./categories.ts";
-import type { Maker, UnitOfMeasure } from "./categories.ts";
+import { categories, deepGrooveBearings } from "./categories.ts";
+import type { Category, Maker, UnitOfMeasure } from "./categories.ts";
 import { demoManufacturerSlug } from "./manufacturers.ts";
 import type { ManufacturerSlug } from "./manufacturers.ts";
 import { demoPlantCode, plants } from "./plants.ts";
@@ -28,13 +28,11 @@ const categoryWeights = categories.map((category) => ({
 }));
 const plantWeights = plants.map((plant) => ({ weight: plant.weight, value: plant.code }));
 
-function findDemoMaker(): Maker {
-  const found = bearingCategory.makers.find((m) => m.slug === demoManufacturerSlug);
-  if (found === undefined)
-    throw new Error("The bearing category must include the demo manufacturer");
+function demoMakerOf(category: Category): Maker {
+  const found = category.makers.find((m) => m.slug === demoManufacturerSlug);
+  if (found === undefined) throw new Error(`${category.key} must include the demo manufacturer`);
   return found;
 }
-const demoMaker = findDemoMaker();
 
 export type SeedMaterial = {
   materialNumber: string;
@@ -85,9 +83,9 @@ export function createMaterialBuilder(): (index: number) => SeedMaterial {
   return (index) => {
     const isDemoRow = index % demoRowInterval === 0;
     const category = isDemoRow
-      ? bearingCategory
+      ? faker.helpers.arrayElement(deepGrooveBearings)
       : faker.helpers.weightedArrayElement(categoryWeights);
-    const maker = isDemoRow ? demoMaker : faker.helpers.arrayElement(category.makers);
+    const maker = isDemoRow ? demoMakerOf(category) : faker.helpers.arrayElement(category.makers);
     const description = category.describe();
 
     return {
