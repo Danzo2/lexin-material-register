@@ -76,3 +76,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** `codex review` on the head after the first fix (P1).
 - **Correction:** Every filter now renders the find box, which takes focus on open. Checked in the browser: Enter opens Type, ArrowDown and Enter set `type=consumable`.
 - **Lesson:** Test every new popover control with the keyboard alone, not only with clicks.
+
+## 2026-11-19 · T07 · Claude Code
+
+- **What went wrong:** The first error-state draft showed only `error.message`. With the API stopped, the Vite proxy answers with an empty 500, so the planner saw "Failed to execute 'json' on 'Response': Unexpected end of JSON input". Separately, the skeleton rows were 2px shorter than real rows because adjacent `my-0.5` margins collapse.
+- **How it was caught:** The manual browser check (killing the API process), and measuring skeleton vs real row heights with `getBoundingClientRect` in the built-in browser.
+- **Correction:** `ErrorState` now adds a plain-language hint ("The server could not be reached" when there is no tRPC error body) above the raw message, and the manufacturer skeleton's second line uses `mt-1 mb-0.5` so rows are 53px like the real table.
+- **Lesson:** Exercise the failure path in the real browser, not just with `curl`; a proxy can turn "API down" into an error message nobody wrote.
