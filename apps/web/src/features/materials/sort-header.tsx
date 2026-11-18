@@ -38,6 +38,9 @@ export function SortHeader({ column, label }: SortHeaderProps) {
     >
       {label}
       <SortIcon dir={activeDir} />
+      {/* aria-sort is only announced on a column header, so the button also
+          says the direction in text until the attribute moves to the <th>. */}
+      {activeDir && <span className="sr-only">, sorted {ariaSortFor[activeDir]}</span>}
     </Button>
   );
 }
