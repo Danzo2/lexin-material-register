@@ -21,7 +21,8 @@ interface MultiSelectFilterProps<T extends string> {
   label: string;
   options: FilterOption<T>[];
   selected: T[];
-  onChange: (selected: T[]) => void;
+  /** Reports the option the user toggled; the parent applies it to the latest URL state. */
+  onToggle: (value: T) => void;
   /** Shown when there are no options to pick, e.g. while they load. */
   emptyText?: string;
 }
@@ -34,13 +35,9 @@ export function MultiSelectFilter<T extends string>({
   label,
   options,
   selected,
-  onChange,
+  onToggle,
   emptyText = "No matches.",
 }: MultiSelectFilterProps<T>) {
-  function toggle(value: T) {
-    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
-  }
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -72,7 +69,7 @@ export function MultiSelectFilter<T extends string>({
                   // the filter's own checked state for screen readers here.
                   aria-checked={selected.includes(option.value)}
                   onSelect={() => {
-                    toggle(option.value);
+                    onToggle(option.value);
                   }}
                 >
                   {/* The whole row toggles; the checkbox only shows the state. */}

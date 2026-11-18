@@ -119,3 +119,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** The warning showed up on the first measurement run. The buffer mismatch was caught by the independent Standards review (`/code-review`).
 - **Correction:** The `auto_explain` settings now go in the connection's startup `options` (`-c session_preload_libraries=auto_explain …`), so no extra query runs. The README now says the bigger figure is the whole count query including the joins, and the smaller one is the `materials` scan shown.
 - **Lesson:** Settings that must apply to every pooled connection belong in the connection string, not a fire-and-forget query. When quoting a trimmed plan, check that the numbers in the prose come from the part shown.
+
+## 2026-11-19 · verification · Claude Code
+
+- **What went wrong:** Slices that each passed review still interacted badly once merged. The page showed "No materials match" for a page past the end (checked `rows.length` instead of `total`), so "Go to last page" never appeared. Retry refetched only the list, not the filter options. The error state still printed the raw "Unexpected end of JSON input". A test stayed as `it.todo` after the code it waited on had landed. Two quick filter clicks could drop one, because the toggle built the new list from the rendered props.
+- **How it was caught:** An independent verifier agent walked through the merged app in the browser against the brief.
+- **Correction:** Empty state keys off `total`; Retry refetches all active queries; the transport message is hidden; the todo became two real tests (filtered total past the end, and the brief's demo query); filter toggles apply to the latest URL state.
+- **Lesson:** Run an end-to-end check after merging parallel slices, not only per ticket.

@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc.ts";
 import { FilterBar } from "./filter-bar.tsx";
 import { MaterialsTable } from "./materials-table.tsx";
@@ -9,6 +9,7 @@ import { useListParams } from "./use-list-params.ts";
 
 export function MaterialsPage() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { params, setParams, clearAll } = useListParams();
   // The parsed URL is the query input, so the query key is exactly the URL state.
   const list = useQuery(
@@ -22,11 +23,15 @@ export function MaterialsPage() {
         <ErrorState
           error={list.error}
           onRetry={() => {
-            void list.refetch();
+            // Refetch every active query, not just the list: if the API was down at
+            // page load, the filter options failed too and need the same retry.
+            void queryClient.refetchQueries({ type: "active" });
           }}
         />
       );
-    if (list.data.rows.length === 0) return <EmptyState onClearAll={clearAll} />;
+    // Use the total, not the page: a page past the end has no rows but still has
+    // matches, and the pagination bar offers "Go to last page" for that case.
+    if (list.data.total === 0) return <EmptyState onClearAll={clearAll} />;
     return (
       <>
         <RefetchIndicator active={list.isPlaceholderData}>

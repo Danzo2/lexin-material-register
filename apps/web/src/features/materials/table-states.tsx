@@ -147,9 +147,13 @@ export function ErrorState({ error, onRetry }: ErrorStateProps) {
       <CircleAlert className="size-8 text-destructive" aria-hidden="true" />
       <p className="mt-3 font-medium">Couldn't load materials</p>
       <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
-      <p className="mt-2 max-w-prose font-mono text-xs break-words text-muted-foreground">
-        {error.message}
-      </p>
+      {/* The API's own message is already safe and generic; a transport failure's
+          message is browser jargon, so it is left out. */}
+      {error.data != null && (
+        <p className="mt-2 max-w-prose font-mono text-xs break-words text-muted-foreground">
+          {error.message}
+        </p>
+      )}
       <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
         Retry
       </Button>

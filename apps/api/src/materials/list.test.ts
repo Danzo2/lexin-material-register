@@ -58,9 +58,29 @@ describe("listMaterials", () => {
     expect(pastEnd.page).toBe(999);
   });
 
-  // filterWhere and searchWhere are still stubs on main, so a filtered total can't be
-  // asserted yet. T04 (#5) adds the filters; turn this into a real test then.
-  it.todo("counts only filtered matches in total, including past the end (#5)");
+  it("counts only filtered matches in total, including past the end", async () => {
+    const skf = { ...defaults, manufacturer: ["skf"] };
+    const firstPage = await listMaterials(db, skf);
+    const pastEnd = await listMaterials(db, { ...skf, page: 999 });
+
+    expect(firstPage.total).toBe(6);
+    expect(firstPage.rows).toHaveLength(6);
+    expect(pastEnd.rows).toEqual([]);
+    expect(pastEnd.total).toBe(6);
+  });
+
+  it("combines search and filters in one where clause (the brief's demo query)", async () => {
+    const result = await listMaterials(db, {
+      ...defaults,
+      q: "bearing",
+      manufacturer: ["skf"],
+      plant: ["1000"],
+      status: ["active"],
+    });
+
+    expect(result.rows.map((r) => r.materialNumber)).toEqual(["MAT-000109", "MAT-000110"]);
+    expect(result.total).toBe(2);
+  });
 });
 
 describe("listMaterials paging over more rows than one page", () => {
