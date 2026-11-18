@@ -53,20 +53,30 @@ function boreCode(bore: number): string {
 }
 
 // One category per bearing kind and bore, so each MPN series matches the kind
-// (deep groove 62xx, spherical 222xx, ...) and "{bore}" in a pattern becomes
-// the matching bore code. The kind's weight is shared across its bores.
-function bearings(kind: string, weight: number, makers: readonly Maker[]): Category[] {
+// (deep groove 62xx, spherical 222xx, ...). In a pattern, "{bore}" becomes the
+// bore code and "{mm}" the bore in mm. The kind's weight is shared across its bores.
+function bearings(
+  kind: string,
+  weight: number,
+  makers: readonly Maker[],
+  noun = "Bearing",
+): Category[] {
   return bearingBores.map((bore) => ({
-    key: `bearing-${kind.replaceAll(" ", "-")}-${bore}`,
+    key: `${noun}-${kind}-${bore}`.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-"),
     weight: weight / bearingBores.length,
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: makers.map((m) =>
-      maker(m.slug, ...m.mpnPatterns.map((p) => p.replaceAll("{bore}", boreCode(bore)))),
+      maker(
+        m.slug,
+        ...m.mpnPatterns.map((p) =>
+          p.replaceAll("{bore}", boreCode(bore)).replaceAll("{mm}", String(bore)),
+        ),
+      ),
     ),
     price: { min: 12, max: 850 },
     stock: { min: 0, max: 400 },
-    describe: () => `Bearing, ${kind}, ${bore}mm bore`,
+    describe: () => `${noun}, ${kind}, ${bore}mm bore`,
   }));
 }
 
@@ -103,21 +113,24 @@ export const categories: readonly Category[] = [
     maker("fag", "72{bore}-B-XL-TVP"),
     maker("nsk", "72{bore}BW"),
   ]),
-  {
-    key: "bearing-unit",
-    weight: 3,
-    type: "spare_part",
-    unitOfMeasure: "EA",
-    makers: [
-      maker("skf", "SY ## TF", "FY ## TF", "TU ## TF"),
-      maker("timken", "RAK#-#/#", "YAS#"),
-      maker("ntn", "UCP2#0D1", "UCF2#0D1", "UCT2#0D1"),
-    ],
-    price: { min: 60, max: 450 },
-    stock: { min: 0, max: 60 },
-    describe: () =>
-      `Bearing unit, ${pick(["pillow block", "flanged, 4-bolt", "take-up"])}, ${pick([25, 30, 35, 40, 50, 60])}mm bore`,
-  },
+  ...bearings(
+    "pillow block",
+    1,
+    [maker("skf", "SY {mm} TF"), maker("ntn", "UCP2{bore}D1")],
+    "Bearing unit",
+  ),
+  ...bearings(
+    "flanged, 4-bolt",
+    1,
+    [maker("skf", "FY {mm} TF"), maker("ntn", "UCF2{bore}D1")],
+    "Bearing unit",
+  ),
+  ...bearings(
+    "take-up",
+    1,
+    [maker("skf", "TU {mm} TF"), maker("ntn", "UCT2{bore}D1")],
+    "Bearing unit",
+  ),
   {
     key: "mechanical-seal",
     weight: 4,
@@ -137,10 +150,7 @@ export const categories: readonly Category[] = [
     weight: 5,
     type: "spare_part",
     unitOfMeasure: "EA",
-    makers: [
-      maker("skf", "CR ##x##x# HMS5 RG", "CR #####"),
-      maker("parker-hannifin", "TCM ##x##x#", "OS-####"),
-    ],
+    makers: [maker("skf", "CR #####"), maker("parker-hannifin", "OS-#####")],
     price: { min: 4, max: 90 },
     stock: { min: 0, max: 300 },
     describe: () => {
@@ -154,7 +164,7 @@ export const categories: readonly Category[] = [
     weight: 3,
     type: "consumable",
     unitOfMeasure: "EA",
-    makers: [maker("parker-hannifin", "2-###-N0674-70", "2-###-V0747-75", "2-###-E0540-70")],
+    makers: [maker("parker-hannifin", "OR-######")],
     price: { min: 0.5, max: 12 },
     stock: { min: 0, max: 2000 },
     describe: () =>
@@ -166,7 +176,7 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "SET",
     makers: [
-      maker("parker-hannifin", "RG2HLTS##", "PK##0HLT"),
+      maker("parker-hannifin", "SK-######"),
       maker("bosch-rexroth", "R9009#####", "R96#######"),
     ],
     price: { min: 45, max: 650 },
@@ -178,7 +188,7 @@ export const categories: readonly Category[] = [
     weight: 6,
     type: "consumable",
     unitOfMeasure: "EA",
-    makers: [maker("flexitallic", "CGI-#00-150", "SW-#00-300", "RTJ-R##", "SF-####")],
+    makers: [maker("flexitallic", "FX-######")],
     price: { min: 8, max: 220 },
     stock: { min: 0, max: 200 },
     describe: () =>
@@ -194,7 +204,7 @@ export const categories: readonly Category[] = [
     type: "consumable",
     unitOfMeasure: "EA",
     makers: [
-      maker("pall", "HC9600FKN##H", "UE319AP##Z", "HC8314FKP##H"),
+      maker("pall", "HC9######", "UE3######"),
       maker("donaldson", "P16####", "P17####"),
       maker("parker-hannifin", "93####Q", "G0####"),
     ],
@@ -246,9 +256,9 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("siemens", "1LE1001-1DB2#-#AA4", "1LE1003-#DB2#-2AA4"),
+      maker("siemens", "1LE1#######"),
       maker("abb", "3GBA1#####-ADA", "3GAA1#####-ADE"),
-      maker("weg", "W22-#00L", "W22-1#2M", "13######"),
+      maker("weg", "13######", "10######"),
     ],
     price: { min: 450, max: 18000 },
     stock: { min: 0, max: 8 },
@@ -260,9 +270,9 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("schneider-electric", "LC1D##BD", "LC1D##M7"),
-      maker("siemens", "3RT20##-1BB40", "3RT20##-1AP00"),
-      maker("abb", "AF##-30-10-13", "AF##-30-00-13"),
+      maker("schneider-electric", "SE#######"),
+      maker("siemens", "3RT9######"),
+      maker("abb", "1SBL######R1300"),
     ],
     price: { min: 45, max: 650 },
     stock: { min: 0, max: 40 },
@@ -275,9 +285,9 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("schneider-electric", "ATV320U##N4C", "ATV630D##N4"),
-      maker("siemens", "6SL3210-1KE2#-#UF1"),
-      maker("abb", "ACS580-01-0##A-4"),
+      maker("schneider-electric", "SE#######"),
+      maker("siemens", "6SL32#######"),
+      maker("abb", "3AXD5########"),
       maker("danfoss", "131B####", "132F####"),
     ],
     price: { min: 900, max: 6500 },
@@ -290,9 +300,9 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("schneider-electric", "GV2ME##", "GV3P##"),
-      maker("siemens", "3RV20#1-#AA10"),
-      maker("abb", "MS132-##", "MS165-##"),
+      maker("schneider-electric", "SE#######"),
+      maker("siemens", "3RV2#######"),
+      maker("abb", "1SAM######R1001"),
     ],
     price: { min: 80, max: 450 },
     stock: { min: 0, max: 30 },
@@ -305,9 +315,9 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("swagelok", "SS-4#GS8", "SS-#00-1-#", "SS-6#TS8", "SS-#RS#", "SS-##F#"),
+      maker("swagelok", "SS-######"),
       maker("flowserve", "WKM-##0", "DUR-####"),
-      maker("parker-hannifin", "#Z-B2LJ2-SSP", "HPB#-##"),
+      maker("parker-hannifin", "HPB-#####"),
     ],
     price: { min: 40, max: 3200 },
     stock: { min: 0, max: 40 },
@@ -325,10 +335,10 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("festo", "VUVG-L14-M5#-MT-G18-1P3", "MFH-5-1/4-##", "5###"),
-      maker("smc", "SY51#0-5LZD-01", "VXZ2#0-03F"),
+      maker("festo", "5#####", "8#####"),
+      maker("smc", "SY-#####", "VXZ-#####"),
       maker("danfoss", "032U####", "042N####"),
-      maker("parker-hannifin", "PVL-B5#2", "7321BAN##"),
+      maker("parker-hannifin", "7321-#####"),
     ],
     price: { min: 60, max: 900 },
     stock: { min: 0, max: 30 },
@@ -341,9 +351,9 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("festo", "DSBC-63-#00-PPVA-N3", "DSNU-32-#00-PPV-A", "15####"),
-      maker("smc", "CP96SDB##-#00", "C96SDB##-#00", "CP96SDB##-#50"),
-      maker("parker-hannifin", "P1D-B0##MS-0#00", "P1F-S0##MS-0#00"),
+      maker("festo", "1#####", "2#####"),
+      maker("smc", "CP96-#####"),
+      maker("parker-hannifin", "P1D-#####"),
       maker("bosch-rexroth", "R4800#####", "R4801#####"),
     ],
     price: { min: 90, max: 1600 },
@@ -357,8 +367,8 @@ export const categories: readonly Category[] = [
     type: "spare_part",
     unitOfMeasure: "EA",
     makers: [
-      maker("bosch-rexroth", "A10VSO##DR/31R-PPA12N00", "AZPF-1#-0##RCB20MB"),
-      maker("parker-hannifin", "PV0##R1K1T1NMMC", "PGP5#5B0##"),
+      maker("bosch-rexroth", "R902######"),
+      maker("parker-hannifin", "38######"),
       maker("danfoss", "151F####", "83#####"),
     ],
     price: { min: 900, max: 14000 },
@@ -372,8 +382,8 @@ export const categories: readonly Category[] = [
     type: "consumable",
     unitOfMeasure: "M",
     makers: [
-      maker("parker-hannifin", "301-##", "471TC-##", "421-##"),
-      maker("gates", "#G2", "#M2T", "#M4K"),
+      maker("parker-hannifin", "301SN-#####", "471TC-#####"),
+      maker("gates", "G2-#####", "M4K-#####"),
     ],
     price: { min: 12, max: 75 },
     stock: { min: 0, max: 500 },
@@ -386,9 +396,9 @@ export const categories: readonly Category[] = [
     type: "consumable",
     unitOfMeasure: "EA",
     makers: [
-      maker("mobil", "15####", "MOBILUX-EP#"),
+      maker("mobil", "15####", "MOB-#####"),
       maker("castrol", "34####", "15A###"),
-      maker("skf", "LGEP 2/#", "LGWA 2/#", "LGHP 2/#"),
+      maker("skf", "LGX-#####"),
     ],
     price: { min: 9, max: 45 },
     stock: { min: 0, max: 600 },
@@ -426,10 +436,7 @@ export const categories: readonly Category[] = [
     weight: 4,
     type: "consumable",
     unitOfMeasure: "EA",
-    makers: [
-      maker("loctite", "IDH1######", "2#3-50ML", "5#8-250ML"),
-      maker("3m", "70-00##-####-#", "UU00####"),
-    ],
+    makers: [maker("loctite", "IDH#######"), maker("3m", "70-00##-####-#", "UU00####")],
     price: { min: 8, max: 95 },
     stock: { min: 0, max: 250 },
     describe: () =>
@@ -447,7 +454,7 @@ export const categories: readonly Category[] = [
     weight: 3,
     type: "consumable",
     unitOfMeasure: "PR",
-    makers: [maker("3m", "CG-#00-L", "XA00######")],
+    makers: [maker("3m", "CG-#####", "XA00######")],
     price: { min: 4, max: 28 },
     stock: { min: 0, max: 800 },
     describe: () =>
@@ -484,7 +491,7 @@ export const categories: readonly Category[] = [
     weight: 3,
     type: "raw_material",
     unitOfMeasure: "KG",
-    makers: [maker("bluescope", "PL350-##-####", "PL250-##-####")],
+    makers: [maker("bluescope", "PL-######")],
     price: { min: 1.8, max: 4.5 },
     stock: { min: 0, max: 25000 },
     describe: () => `Plate, steel, ${pick([6, 8, 10, 12, 16, 20, 25])}mm grade ${pick([250, 350])}`,

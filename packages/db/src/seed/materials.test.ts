@@ -53,7 +53,7 @@ describe("buildMaterial", () => {
       expect(row.unitPrice).toMatch(/^\d+\.\d{2}$/);
       expect(Number(row.unitPrice)).toBeGreaterThan(0);
       expect(row.stockOnHand).toBeGreaterThanOrEqual(0);
-      expect(row.mpn).not.toMatch(/[#?]/);
+      expect(row.mpn).not.toMatch(/[#?{}]/);
       expect(row.description).toMatch(/^[A-Z][^,]*, /);
     }
   });
