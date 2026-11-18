@@ -90,3 +90,18 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** `codex review` (P2). The first fix failed the browser re-test, and reading `useSearchParams` in react-router showed why.
 - **Correction:** The box now watches the router's `location.key`, which changes on every navigation. On a new location it follows the URL when `q` changed and it wasn't the box's own write, or when the URL is empty (Clear all).
 - **Lesson:** A component that only receives a value can't see events that don't change that value. Test the debounce together with resets that start from the default state, not only from a non-default one.
+
+## 2026-11-19 · T02 · Claude Code
+
+- **What went wrong:** The first realistic seed gave each manufacturer one set of MPN patterns regardless of the item, so a Sandvik stainless bar got a cutting-insert code and a Gates hydraulic hose got a V-belt code.
+- **How it was caught:** Reading the first 30 seeded rows in `psql` before opening the PR.
+- **Correction:** Moved MPN patterns onto each category's list of makers (`packages/db/src/seed/categories.ts`), so the format depends on both the maker and the kind of item.
+- **Lesson:** Look at real seeded rows, not just test results, when the goal is data that "looks real".
+
+## 2026-11-19 · T02 · Codex (review of Claude Code)
+
+- **What went wrong:** Claude Code picked each row's description and MPN independently, so one MPN could name several different products (e.g. the same Festo valve code on 3/2-way and 5/2-way valves). Claude had listed the looser version of this as a known gap rather than fixing it.
+- **How it was caught:** `codex review` (P2).
+- **Correction:** `createMaterialBuilder()` now remembers one MPN per maker + description and never reuses an MPN for a different description, with a test for both directions. Narrow MPN patterns were widened so the unique-suffix fallback is never needed at 10k or 200k rows.
+- **Second pass:** Re-running `codex review` on the fixed head found the MPN _style_ could still contradict the description (a CNMG turning insert with an R390 milling code; a taper roller bearing with a spherical-roller series). Bearings are now one category per kind and inserts are split into turning and milling, each with matching MPN series. A third pass found the same mix in the electrical and belt templates; they are now split into contactor / drive / motor circuit breaker and V-belt / timing belt. Its other point (the same product can appear twice at one plant) was left deliberately: unique maker + description + plant is impossible at 200,000 rows with template descriptions, and duplicate materials are a real SAP data-quality issue. A fourth pass noted bearing MPNs encode the bore (6205 = 25mm) but the bore was picked separately; bearings are now one template per kind and bore, with the ISO bore code written into the MPN. A fifth pass found sizes still encoded in oil-seal and cylinder MPNs; every remaining pattern that encoded a size, rating or grade is now an opaque catalogue number, and bearing units use the same bore-coded templates as bearings.
+- **Lesson:** "Looks real" includes consistency across rows, not just plausible values in each row.
