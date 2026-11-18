@@ -1,4 +1,15 @@
-import type { MaterialListInput } from "@lexin/shared";
+import {
+  materialStatuses,
+  materialStatusLabels,
+  materialTypeLabels,
+  materialTypes,
+  type MaterialListInput,
+} from "@lexin/shared";
+import { useQuery } from "@tanstack/react-query";
+import { XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
+import { useTRPC } from "@/trpc.ts";
+import { MultiSelectFilter } from "./multi-select-filter.tsx";
 import type { ListParamsPatch } from "./use-list-params.ts";
 
 interface FilterBarProps {
@@ -7,7 +18,81 @@ interface FilterBarProps {
   onClearAll: () => void;
 }
 
-// Stub: T04 adds the type, status, plant and manufacturer multi-selects and "Clear all".
-export function FilterBar(_props: FilterBarProps) {
-  return null;
+const typeOptions = materialTypes.map((value) => ({ value, label: materialTypeLabels[value] }));
+const statusOptions = materialStatuses.map((value) => ({
+  value,
+  label: materialStatusLabels[value],
+}));
+
+export function FilterBar({ params, onChange, onClearAll }: FilterBarProps) {
+  const trpc = useTRPC();
+  const options = useQuery(trpc.materials.filterOptions.queryOptions({}));
+
+  const plantOptions = (options.data?.plants ?? []).map((plant) => ({
+    value: plant.code,
+    label: `${plant.code} · ${plant.name}`,
+  }));
+  const manufacturerOptions = (options.data?.manufacturers ?? []).map((manufacturer) => ({
+    value: manufacturer.slug,
+    label: manufacturer.name,
+  }));
+  const optionsEmptyText = options.isError
+    ? "Couldn't load options."
+    : options.isPending
+      ? "Loading…"
+      : "No matches.";
+
+  const isFiltered =
+    params.q !== "" ||
+    params.type.length > 0 ||
+    params.status.length > 0 ||
+    params.plant.length > 0 ||
+    params.manufacturer.length > 0;
+
+  return (
+    <>
+      <MultiSelectFilter
+        label="Type"
+        options={typeOptions}
+        selected={params.type}
+        onChange={(type) => {
+          onChange({ type });
+        }}
+      />
+      <MultiSelectFilter
+        label="Status"
+        options={statusOptions}
+        selected={params.status}
+        onChange={(status) => {
+          onChange({ status });
+        }}
+      />
+      <MultiSelectFilter
+        label="Plant"
+        options={plantOptions}
+        selected={params.plant}
+        onChange={(plant) => {
+          onChange({ plant });
+        }}
+        searchable
+        emptyText={optionsEmptyText}
+      />
+      <MultiSelectFilter
+        label="Manufacturer"
+        options={manufacturerOptions}
+        selected={params.manufacturer}
+        onChange={(manufacturer) => {
+          onChange({ manufacturer });
+        }}
+        searchable
+        emptyText={optionsEmptyText}
+      />
+      {isFiltered && (
+        <Button variant="ghost" size="sm" onClick={onClearAll}>
+          Clear all
+          <XIcon />
+        </Button>
+      )}
+    </>
+  );
 }
