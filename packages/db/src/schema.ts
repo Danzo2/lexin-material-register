@@ -50,7 +50,7 @@ export const materials = pgTable(
     stockOnHand: integer("stock_on_hand").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  // One btree per filtered or sorted column (see README for the reasoning).
+  // One btree per filtered or sorted column, plus trigram indexes for search (see README).
   (table) => [
     index("materials_type_idx").on(table.type),
     index("materials_status_idx").on(table.status),
@@ -60,5 +60,13 @@ export const materials = pgTable(
     index("materials_unit_price_idx").on(table.unitPrice),
     index("materials_stock_on_hand_idx").on(table.stockOnHand),
     index("materials_updated_at_idx").on(table.updatedAt),
+    // Trigram GIN indexes let `ILIKE '%word%'` search skip the sequential scan.
+    // gin_trgm_ops comes from the pg_trgm extension (custom migration 0002).
+    index("materials_material_number_trgm_idx").using(
+      "gin",
+      table.materialNumber.op("gin_trgm_ops"),
+    ),
+    index("materials_description_trgm_idx").using("gin", table.description.op("gin_trgm_ops")),
+    index("materials_mpn_trgm_idx").using("gin", table.mpn.op("gin_trgm_ops")),
   ],
 );
