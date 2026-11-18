@@ -69,3 +69,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** `codex review` (P2). Confirmed in the browser by reading the `role=option` attributes.
 - **Correction:** Each option now sets `aria-checked` from the selection. Checked in the browser: `Active` reports `true` and the others `false`.
 - **Lesson:** When a visual control is made decorative, move its state onto the element assistive tech actually reads.
+
+## 2026-11-19 · T04 · Codex (second review of Claude Code)
+
+- **What went wrong:** Claude Code showed the cmdk find box only on the long Plant and Manufacturer lists. With no input, Type and Status had nothing focusable inside the popover (cmdk items aren't tab stops), so keyboard users couldn't move through or toggle those options.
+- **How it was caught:** `codex review` on the head after the first fix (P1).
+- **Correction:** Every filter now renders the find box, which takes focus on open. Checked in the browser: Enter opens Type, ArrowDown and Enter set `type=consumable`.
+- **Lesson:** Test every new popover control with the keyboard alone, not only with clicks.

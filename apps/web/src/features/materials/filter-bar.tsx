@@ -74,7 +74,6 @@ export function FilterBar({ params, onChange, onClearAll }: FilterBarProps) {
         onChange={(plant) => {
           onChange({ plant });
         }}
-        searchable
         emptyText={optionsEmptyText}
       />
       <MultiSelectFilter
@@ -84,7 +83,6 @@ export function FilterBar({ params, onChange, onClearAll }: FilterBarProps) {
         onChange={(manufacturer) => {
           onChange({ manufacturer });
         }}
-        searchable
         emptyText={optionsEmptyText}
       />
       {isFiltered && (

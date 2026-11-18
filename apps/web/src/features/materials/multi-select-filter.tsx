@@ -22,8 +22,6 @@ interface MultiSelectFilterProps<T extends string> {
   options: FilterOption<T>[];
   selected: T[];
   onChange: (selected: T[]) => void;
-  /** Adds a box that narrows the option list; worth it only for long lists. */
-  searchable?: boolean;
   /** Shown when there are no options to pick, e.g. while they load. */
   emptyText?: string;
 }
@@ -37,8 +35,7 @@ export function MultiSelectFilter<T extends string>({
   options,
   selected,
   onChange,
-  searchable = false,
-  emptyText = "No options.",
+  emptyText = "No matches.",
 }: MultiSelectFilterProps<T>) {
   function toggle(value: T) {
     onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
@@ -60,7 +57,9 @@ export function MultiSelectFilter<T extends string>({
       </PopoverTrigger>
       <PopoverContent className="w-60 p-0" align="start">
         <Command>
-          {searchable && <CommandInput placeholder={`Find ${label.toLowerCase()}`} />}
+          {/* Always rendered: it takes focus when the popover opens, which is what
+              lets keyboard users move through the options and toggle them. */}
+          <CommandInput placeholder={`Find ${label.toLowerCase()}`} />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
