@@ -32,9 +32,12 @@ export function MaterialsPage() {
         <RefetchIndicator active={list.isPlaceholderData}>
           <MaterialsTable rows={list.data.rows} dimmed={list.isPlaceholderData} />
         </RefetchIndicator>
+        {/* Page and size come from the URL, not the response: while the next page
+            loads, `list.data` is still the previous page, so a second Next click
+            would otherwise ask for the same page again. */}
         <PaginationBar
-          page={list.data.page}
-          pageSize={list.data.pageSize}
+          page={params.page}
+          pageSize={params.pageSize}
           total={list.data.total}
           onChange={setParams}
         />
