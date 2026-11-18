@@ -69,6 +69,9 @@ export function MultiSelectFilter<T extends string>({
                   key={option.value}
                   // cmdk matches the search box against `value`, so use the visible label.
                   value={option.label}
+                  // cmdk's aria-selected tracks the keyboard highlight, so expose
+                  // the filter's own checked state for screen readers here.
+                  aria-checked={selected.includes(option.value)}
                   onSelect={() => {
                     toggle(option.value);
                   }}

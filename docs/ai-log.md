@@ -62,3 +62,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** The failing Vitest run (tests); `codex review` (P2) for the stale-page navigation.
 - **Correction:** Replaced the filtered tests with an unfiltered past-end test plus an `it.todo` pointing at T04 (#5). The stale-page fix needs `materials-page.tsx` (outside T06's scope) to pass the URL's `page`/`pageSize`, or disable the bar while `isPlaceholderData`; reported to the orchestrator instead of changed here.
 - **Lesson:** Check which collaborators are still stubs before writing tests against them. With placeholder data, controls should read the URL state, not the last response.
+
+## 2026-11-19 · T04 · Codex (review of Claude Code)
+
+- **What went wrong:** Claude Code hid the filter checkboxes from the accessibility tree (`aria-hidden`) so the whole row could toggle, but forgot that cmdk's `aria-selected` only tracks the keyboard highlight. Screen-reader users couldn't tell which filter values were checked.
+- **How it was caught:** `codex review` (P2). Confirmed in the browser by reading the `role=option` attributes.
+- **Correction:** Each option now sets `aria-checked` from the selection. Checked in the browser: `Active` reports `true` and the others `false`.
+- **Lesson:** When a visual control is made decorative, move its state onto the element assistive tech actually reads.
