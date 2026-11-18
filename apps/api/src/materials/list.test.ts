@@ -1,5 +1,8 @@
+import { schema } from "@lexin/db";
 import { materialListInput } from "@lexin/shared";
-import { describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { describe, expect, inject, it } from "vitest";
 import { connectTestDb } from "../test/db.ts";
 import { fixtureMaterials } from "../test/fixture.ts";
 import { listMaterials } from "./list.ts";
@@ -45,5 +48,81 @@ describe("listMaterials", () => {
     expect(page1.rows).toHaveLength(20);
     expect(page2.rows).toEqual([]);
     expect(page2.total).toBe(20);
+  });
+
+  it("returns no rows but the full total for a page past the end", async () => {
+    const pastEnd = await listMaterials(db, { ...defaults, page: 999 });
+
+    expect(pastEnd.rows).toEqual([]);
+    expect(pastEnd.total).toBe(fixtureMaterials.length);
+    expect(pastEnd.page).toBe(999);
+  });
+
+  // filterWhere and searchWhere are still stubs on main, so a filtered total can't be
+  // asserted yet. T04 (#5) adds the filters; turn this into a real test then.
+  it.todo("counts only filtered matches in total, including past the end (#5)");
+});
+
+describe("listMaterials paging over more rows than one page", () => {
+  // The fixture has 20 rows and the smallest page size is 25, so these tests add
+  // 40 rows inside a transaction and roll it back. A pool of one connection keeps
+  // every query on that transaction, and other test files never see the rows.
+  const extraCount = 40;
+  const extraNumbers = Array.from(
+    { length: extraCount },
+    (_, i) => `MAT-9${String(i + 1).padStart(5, "0")}`,
+  );
+
+  async function withExtraRows(run: (txDb: typeof db) => Promise<void>): Promise<void> {
+    const txDb = drizzle({
+      connection: { connectionString: inject("databaseUrl"), max: 1 },
+      schema,
+    });
+    try {
+      await txDb.execute(sql`begin`);
+      const [plant] = await txDb
+        .insert(schema.plants)
+        .values({ code: "9000", name: "Darwin" })
+        .returning();
+      const [manufacturer] = await txDb
+        .insert(schema.manufacturers)
+        .values({ slug: "paging-test", name: "Paging Test Co" })
+        .returning();
+      if (plant === undefined || manufacturer === undefined) throw new Error("Insert failed");
+      await txDb.insert(schema.materials).values(
+        extraNumbers.map((materialNumber) => ({
+          materialNumber,
+          description: `Paging test item ${materialNumber}`,
+          type: "spare_part" as const,
+          manufacturerId: manufacturer.id,
+          mpn: materialNumber,
+          plantId: plant.id,
+          status: "active" as const,
+          unitOfMeasure: "EA",
+          unitPrice: "1.00",
+          stockOnHand: 1,
+          updatedAt: new Date("2026-01-01T00:00:00Z"),
+        })),
+      );
+      await run(txDb);
+    } finally {
+      await txDb.execute(sql`rollback`);
+      await txDb.$client.end();
+    }
+  }
+
+  it("returns the requested slice for each page and page size", async () => {
+    await withExtraRows(async (txDb) => {
+      const allNumbers = [...fixtureMaterials.map((m) => m.materialNumber), ...extraNumbers].sort();
+
+      const page2 = await listMaterials(txDb, { ...defaults, pageSize: 25, page: 2 });
+      const page3 = await listMaterials(txDb, { ...defaults, pageSize: 25, page: 3 });
+      const bigPage = await listMaterials(txDb, { ...defaults, pageSize: 100 });
+
+      expect(page2.total).toBe(60);
+      expect(page2.rows.map((r) => r.materialNumber)).toEqual(allNumbers.slice(25, 50));
+      expect(page3.rows.map((r) => r.materialNumber)).toEqual(allNumbers.slice(50, 60));
+      expect(bigPage.rows).toHaveLength(60);
+    });
   });
 });
