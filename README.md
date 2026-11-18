@@ -145,7 +145,7 @@ DATABASE_URL=postgres://lexin:lexin@localhost:5432/<throwaway db> \
 | `6205`         |     530 | 20.3 ms → 22.2 ms          | 46.3 ms → 1.1 ms           | Count only (see below)          |
 | `62`           |  20,043 | 0.7 ms → 0.6 ms            | 43.4 ms → 45.4 ms          | No: too short to have a trigram |
 
-For the brief-style search `bearing 6205`, both queries are about 10× faster and read 6× fewer buffers (3,347 → 557 for the count). The `count(*)` plans (one run each), trimmed to the scan of `materials` (the full plans also show the joins to `plants` and `manufacturers`):
+For the brief-style search `bearing 6205`, both queries are about 10× faster and read 6× fewer buffers (3,347 → 557 for the whole count query, including the joins; 3,217 → 555 for the `materials` scan shown below). The `count(*)` plans (one run each), trimmed to the scan of `materials` (the full plans also show the joins to `plants` and `manufacturers`):
 
 Before: a parallel sequential scan of all 200,000 rows.
 
