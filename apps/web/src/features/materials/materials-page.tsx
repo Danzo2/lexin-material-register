@@ -4,7 +4,7 @@ import { FilterBar } from "./filter-bar.tsx";
 import { MaterialsTable } from "./materials-table.tsx";
 import { PaginationBar } from "./pagination-bar.tsx";
 import { SearchBox } from "./search-box.tsx";
-import { EmptyState, ErrorState, TableSkeleton } from "./table-states.tsx";
+import { EmptyState, ErrorState, RefetchIndicator, TableSkeleton } from "./table-states.tsx";
 import { useListParams } from "./use-list-params.ts";
 
 export function MaterialsPage() {
@@ -29,7 +29,9 @@ export function MaterialsPage() {
     if (list.data.rows.length === 0) return <EmptyState onClearAll={clearAll} />;
     return (
       <>
-        <MaterialsTable rows={list.data.rows} dimmed={list.isPlaceholderData} />
+        <RefetchIndicator active={list.isPlaceholderData}>
+          <MaterialsTable rows={list.data.rows} dimmed={list.isPlaceholderData} />
+        </RefetchIndicator>
         <PaginationBar
           page={list.data.page}
           pageSize={list.data.pageSize}
