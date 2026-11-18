@@ -1,5 +1,6 @@
 import { Search, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useLocation } from "react-router";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 
@@ -20,37 +21,42 @@ interface SearchBoxProps {
  *
  * - `sentValue` is the last `q` this box wrote (or accepted from the URL). The
  *   debounce effect writes the draft once it has differed from `sentValue` for
- *   300 ms; any newer keystroke or URL change cancels the pending write.
- * - When the URL `q` changes from outside (Clear all, back button), the draft is
- *   reset during render, React's "adjust state when a prop changes" pattern,
- *   rather than in an effect. `seenValue` detects the change. Comparing with
- *   `sentValue` ignores our own write arriving back from the URL, so keys typed
- *   while it was in flight are not overwritten.
+ *   300 ms; any newer keystroke or URL reset cancels the pending write.
+ * - On every navigation (new location key) the draft may follow the URL. This is
+ *   done during render, React's "adjust state when a prop changes" pattern, not
+ *   in an effect. The draft follows when `q` changed and it isn't our own write
+ *   (back button), or when the URL is now empty (Clear all). Clear all must be
+ *   caught by the empty URL, because `q` may already have been empty while a
+ *   draft was waiting to be sent. Comparing with `sentValue` ignores our own write
+ *   arriving back from the URL, so keys typed while it was in flight are kept.
  */
 export function SearchBox({ value, onSearch }: SearchBoxProps) {
+  const location = useLocation();
   const [draft, setDraft] = useState(value);
-  const [seenValue, setSeenValue] = useState(value);
+  const [seenLocationKey, setSeenLocationKey] = useState(location.key);
   const [sentValue, setSentValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (value !== seenValue) {
-    setSeenValue(value);
-    if (value !== sentValue) {
+  if (location.key !== seenLocationKey) {
+    setSeenLocationKey(location.key);
+    if (value !== sentValue || location.search === "") {
       setDraft(value);
       setSentValue(value);
     }
   }
 
-  const send = useEffectEvent((q: string) => {
+  function send(q: string) {
     setSentValue(q);
     onSearch(q);
-  });
+  }
+
+  const sendFromTimer = useEffectEvent(send);
 
   useEffect(() => {
     const q = draft.trim();
     if (q === sentValue) return;
     const timer = setTimeout(() => {
-      send(q);
+      sendFromTimer(q);
     }, debounceMs);
     return () => {
       clearTimeout(timer);
@@ -60,8 +66,7 @@ export function SearchBox({ value, onSearch }: SearchBoxProps) {
   // Clearing is deliberate, so it skips the debounce.
   function clear() {
     setDraft("");
-    setSentValue("");
-    onSearch("");
+    send("");
     // The clear button unmounts once the draft is empty, so keep focus in the box.
     inputRef.current?.focus();
   }
