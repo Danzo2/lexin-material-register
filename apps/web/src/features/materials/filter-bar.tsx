@@ -10,15 +10,21 @@ import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { useTRPC } from "@/trpc.ts";
 import { MultiSelectFilter } from "./multi-select-filter.tsx";
-import type { ListParamsPatch } from "./use-list-params.ts";
+import type { ListParamsUpdate } from "./use-list-params.ts";
 
 interface FilterBarProps {
   params: MaterialListInput;
-  onChange: (patch: ListParamsPatch) => void;
+  onChange: (update: ListParamsUpdate) => void;
   onClearAll: () => void;
 }
 
 const typeOptions = materialTypes.map((value) => ({ value, label: materialTypeLabels[value] }));
+// Toggling against `prev` (the latest URL) means two quick clicks both land,
+// even if the second arrives before React re-renders with the first.
+function toggled<T>(list: T[], value: T): T[] {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
 const statusOptions = materialStatuses.map((value) => ({
   value,
   label: materialStatusLabels[value],
@@ -55,24 +61,24 @@ export function FilterBar({ params, onChange, onClearAll }: FilterBarProps) {
         label="Type"
         options={typeOptions}
         selected={params.type}
-        onChange={(type) => {
-          onChange({ type });
+        onToggle={(value) => {
+          onChange((prev) => ({ type: toggled(prev.type, value) }));
         }}
       />
       <MultiSelectFilter
         label="Status"
         options={statusOptions}
         selected={params.status}
-        onChange={(status) => {
-          onChange({ status });
+        onToggle={(value) => {
+          onChange((prev) => ({ status: toggled(prev.status, value) }));
         }}
       />
       <MultiSelectFilter
         label="Plant"
         options={plantOptions}
         selected={params.plant}
-        onChange={(plant) => {
-          onChange({ plant });
+        onToggle={(value) => {
+          onChange((prev) => ({ plant: toggled(prev.plant, value) }));
         }}
         emptyText={optionsEmptyText}
       />
@@ -80,8 +86,8 @@ export function FilterBar({ params, onChange, onClearAll }: FilterBarProps) {
         label="Manufacturer"
         options={manufacturerOptions}
         selected={params.manufacturer}
-        onChange={(manufacturer) => {
-          onChange({ manufacturer });
+        onToggle={(value) => {
+          onChange((prev) => ({ manufacturer: toggled(prev.manufacturer, value) }));
         }}
         emptyText={optionsEmptyText}
       />
