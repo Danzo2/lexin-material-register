@@ -55,3 +55,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** `codex review` (P2). Claude had listed it as a known gap in the PR but had not given screen-reader users any other way to hear the direction.
 - **Correction:** The button now also carries visually hidden text (", sorted ascending/descending"). Moving `aria-sort` to the `<th>` needs a `materials-table.tsx` change outside T05's scope, so it was reported to the orchestrator as a follow-up.
 - **Lesson:** Check where an ARIA attribute is valid before choosing the element, even when the ticket allows either option.
+
+## 2026-11-19 · T06 · Claude Code (with Codex review)
+
+- **What went wrong:** Claude Code first wrote filtered-total API tests, forgetting that `filterWhere` and `searchWhere` are still stubs on `main`, so they failed. Separately, the pagination bar computes Next/Previous from `list.data.page`, which is the previous response while `keepPreviousData` is showing stale rows: clicking Next twice before page 2 loads asks for page 2 twice.
+- **How it was caught:** The failing Vitest run (tests); `codex review` (P2) for the stale-page navigation.
+- **Correction:** Replaced the filtered tests with an unfiltered past-end test plus an `it.todo` pointing at T04 (#5). The stale-page fix needs `materials-page.tsx` (outside T06's scope) to pass the URL's `page`/`pageSize`, or disable the bar while `isPlaceholderData`; reported to the orchestrator instead of changed here.
+- **Lesson:** Check which collaborators are still stubs before writing tests against them. With placeholder data, controls should read the URL state, not the last response.
