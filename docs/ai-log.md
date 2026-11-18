@@ -112,3 +112,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** The end-to-end check of the brief. Reproduced by slowing `fetch` by 1.5 s in the page and clicking Next twice 300 ms apart: old code went 2 → 3, fixed code 2 → 4.
 - **Correction:** `materials-page.tsx` passes the URL's `page` and `pageSize` to the pagination bar instead of `list.data.page`/`pageSize`.
 - **Lesson:** Follow-ups reported "to the orchestrator" need a ticket or they get lost. To test a race, make the slow side reliably slow instead of guessing at click timings.
+
+## 2026-11-19 · T09 · Claude Code
+
+- **What went wrong:** The first version of `scripts/explain-search.ts` turned on `auto_explain` by running `LOAD`/`SET` from the pool's `connect` event. That races the pool's own first query on the same client, and `pg` printed a deprecation warning ("client is already executing a query"). Separately, the README's "Faster search" section quoted 3,347 → 557 buffers next to a trimmed plan showing 3,217 → 555, with no explanation.
+- **How it was caught:** The warning showed up on the first measurement run. The buffer mismatch was caught by the independent Standards review (`/code-review`).
+- **Correction:** The `auto_explain` settings now go in the connection's startup `options` (`-c session_preload_libraries=auto_explain …`), so no extra query runs. The README now says the bigger figure is the whole count query including the joins, and the smaller one is the `materials` scan shown.
+- **Lesson:** Settings that must apply to every pooled connection belong in the connection string, not a fire-and-forget query. When quoting a trimmed plan, check that the numbers in the prose come from the part shown.
