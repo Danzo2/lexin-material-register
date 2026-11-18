@@ -11,8 +11,13 @@ const server = createHTTPServer({
   basePath: "/trpc/",
   router: appRouter,
   createContext: () => ({ db }),
+  // Clients only get a sanitised message (see trpc.ts), so the server log is
+  // where the detail lives: full error and stack for unexpected failures, the
+  // original message for expected ones such as a rejected input.
   onError: ({ path, error }) => {
-    if (error.code === "INTERNAL_SERVER_ERROR") console.error(`tRPC ${path ?? "?"}:`, error);
+    const where = `tRPC ${path ?? "?"}`;
+    if (error.code === "INTERNAL_SERVER_ERROR") console.error(`${where}:`, error);
+    else console.warn(`${where}: ${error.code} ${error.message}`);
   },
 });
 
