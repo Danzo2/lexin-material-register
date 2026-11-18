@@ -34,3 +34,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** Running the README commands end to end once Docker worked.
 - **Correction:** Generated an empty baseline migration with `drizzle-kit generate --custom --name init`.
 - **Lesson:** Run the reviewer's exact setup commands against a fresh database before calling setup done.
+
+## 2026-11-19 · T01 · Claude Code
+
+- **What went wrong:** `shadcn add` resolved the `utils` alias to a bare `"cn"` import and installed an unrelated npm package called `cn` instead of using `@/lib/utils`. Separately, a format test assumed `en-AU` abbreviates July as "Jul" (ICU prints "July").
+- **How it was caught:** Reading the `package.json` diff after the generator ran; the failing Vitest run for the date test.
+- **Correction:** Removed the `cn` package, pointed the generated components at `@/lib/utils.ts` (with explicit `.tsx`/`.ts` extensions per AGENTS.md), and changed the test to a month whose abbreviation is unambiguous.
+- **Lesson:** Always review dependency diffs from code generators before committing; don't hard-code locale output without running it.
