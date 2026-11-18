@@ -83,3 +83,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** The manual browser check (killing the API process), and measuring skeleton vs real row heights with `getBoundingClientRect` in the built-in browser.
 - **Correction:** `ErrorState` now adds a plain-language hint ("The server could not be reached" when there is no tRPC error body) above the raw message, and the manufacturer skeleton's second line uses `mt-1 mb-0.5` so rows are 53px like the real table.
 - **Lesson:** Exercise the failure path in the real browser, not just with `curl`; a proxy can turn "API down" into an error message nobody wrote.
+
+## 2026-11-19 · T03 · Codex (review of Claude Code)
+
+- **What went wrong:** Claude Code's search box decided whether the draft should follow the URL by comparing the URL's `q` with its previous value. If you typed into an empty box and clicked Clear all within the 300 ms debounce, `q` stayed `""`, so the box saw no change and the pending write put the search back after Clear all. Claude's first fix sent the draft straight away when the box lost focus. In the browser, Clear all's navigation replaced that write before it landed, so the URL was clean but the box still showed the old text. The same fix would also have lost the search when you clicked a filter, because React Router's functional `setSearchParams` builds on the params from the last render.
+- **How it was caught:** `codex review` (P2). The first fix failed the browser re-test, and reading `useSearchParams` in react-router showed why.
+- **Correction:** The box now watches the router's `location.key`, which changes on every navigation. On a new location it follows the URL when `q` changed and it wasn't the box's own write, or when the URL is empty (Clear all).
+- **Lesson:** A component that only receives a value can't see events that don't change that value. Test the debounce together with resets that start from the default state, not only from a non-default one.
