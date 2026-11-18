@@ -48,3 +48,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** `codex review` (P2), confirmed with `curl` against a database with no tables.
 - **Correction:** `apps/api/src/trpc.ts` now sets `isDev: false` and an `errorFormatter` that replaces `INTERNAL_SERVER_ERROR` messages with "Internal server error". The server still logs the full error.
 - **Lesson:** When adding the first procedure that touches the database, probe its failure path as well as its happy path.
+
+## 2026-11-19 · T05 · Codex (review of Claude Code)
+
+- **What went wrong:** Claude Code put `aria-sort` on the sort header's `<button>`. ARIA only supports `aria-sort` on column or row headers, so screen readers may not announce the active sort direction.
+- **How it was caught:** `codex review` (P2). Claude had listed it as a known gap in the PR but had not given screen-reader users any other way to hear the direction.
+- **Correction:** The button now also carries visually hidden text (", sorted ascending/descending"). Moving `aria-sort` to the `<th>` needs a `materials-table.tsx` change outside T05's scope, so it was reported to the orchestrator as a follow-up.
+- **Lesson:** Check where an ARIA attribute is valid before choosing the element, even when the ticket allows either option.
