@@ -1,6 +1,6 @@
 # Material Register
 
-A full stack app for finding materials in a 10,000-row SAP-style maintenance catalogue: one search box, four filters, sortable columns and server-side pagination, with the whole table state in the URL. Built for Lexin's "The Pragmatist" take-home ([brief](docs/brief.md)).
+A full stack app for finding materials in a 10,000-row SAP-style maintenance catalogue: one search box, four filters, sortable columns and server-side pagination, with the whole table state in the URL.
 
 **Stack:** React Router v7 SPA · shadcn/ui (Tailwind v4) · TanStack Query · tRPC v11 · Node 22 + TypeScript · Drizzle ORM · PostgreSQL 17 (Docker Compose) · zod · Vitest · pnpm workspace.
 
