@@ -1,31 +1,25 @@
-import type { SortColumn, SortDirection } from "@lexin/shared";
+import type { SortDirection } from "@lexin/shared";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
-import { useListParams } from "./use-list-params.ts";
 
-interface SortHeaderProps {
-  column: SortColumn;
-  label: string;
+/** The parts of a TanStack Table column the header button needs. */
+interface SortableColumn {
+  getIsSorted: () => false | SortDirection;
+  getToggleSortingHandler: () => undefined | ((event: unknown) => void);
 }
 
-const ariaSortFor: Record<SortDirection, "ascending" | "descending"> = {
-  asc: "ascending",
-  desc: "descending",
-};
+interface SortHeaderProps {
+  label: string;
+  column: SortableColumn;
+}
 
 /**
- * Column header that sorts the table. Clicking a new column sorts it ascending;
- * clicking the active column flips the direction. The sort lives only in the URL,
- * and `setParams` sends the user back to page 1.
+ * Header button for a sortable column. TanStack Table works out the next sort
+ * (a new column sorts ascending, the active column flips) and the table writes
+ * it to the URL. `aria-sort` is set on the surrounding <th> by the table.
  */
-export function SortHeader({ column, label }: SortHeaderProps) {
-  const { params, setParams } = useListParams();
-  const activeDir = params.sort === column ? params.dir : undefined;
-
-  function handleClick() {
-    const dir: SortDirection = activeDir === "asc" ? "desc" : "asc";
-    setParams({ sort: column, dir });
-  }
+export function SortHeader({ label, column }: SortHeaderProps) {
+  const dir = column.getIsSorted();
 
   return (
     <Button
@@ -33,19 +27,15 @@ export function SortHeader({ column, label }: SortHeaderProps) {
       variant="ghost"
       size="sm"
       className="-mx-2 px-2"
-      aria-sort={activeDir ? ariaSortFor[activeDir] : "none"}
-      onClick={handleClick}
+      onClick={column.getToggleSortingHandler()}
     >
       {label}
-      <SortIcon dir={activeDir} />
-      {/* aria-sort is only announced on a column header, so the button also
-          says the direction in text until the attribute moves to the <th>. */}
-      {activeDir && <span className="sr-only">, sorted {ariaSortFor[activeDir]}</span>}
+      <SortIcon dir={dir} />
     </Button>
   );
 }
 
-function SortIcon({ dir }: { dir: SortDirection | undefined }) {
+function SortIcon({ dir }: { dir: false | SortDirection }) {
   if (dir === "asc") return <ArrowUpIcon aria-hidden="true" />;
   if (dir === "desc") return <ArrowDownIcon aria-hidden="true" />;
   return <ArrowUpDownIcon aria-hidden="true" className="text-muted-foreground" />;

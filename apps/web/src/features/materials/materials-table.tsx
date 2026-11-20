@@ -1,28 +1,7 @@
-import { materialStatusLabels, materialTypeLabels, type MaterialStatus } from "@lexin/shared";
-import type { AppRouter } from "@lexin/api";
-import type { inferOutput, TRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import { Badge } from "@/components/ui/badge.tsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table.tsx";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table.tsx";
 import { cn } from "@/lib/utils.ts";
-import { formatDate, formatPrice, formatStock } from "./format.ts";
-import { SortHeader } from "./sort-header.tsx";
-
-export type MaterialRow = inferOutput<
-  TRPCOptionsProxy<AppRouter>["materials"]["list"]
->["rows"][number];
-
-const statusVariant: Record<MaterialStatus, "default" | "secondary" | "outline"> = {
-  active: "default",
-  pending_review: "secondary",
-  obsolete: "outline",
-};
+import type { MaterialRow } from "./material-columns.tsx";
+import { MaterialsTableHeader, useMaterialsTable } from "./use-materials-table.tsx";
 
 interface MaterialsTableProps {
   rows: MaterialRow[];
@@ -31,56 +10,26 @@ interface MaterialsTableProps {
 }
 
 export function MaterialsTable({ rows, dimmed }: MaterialsTableProps) {
+  const table = useMaterialsTable(rows);
+
   return (
     <Table className={cn("transition-opacity", dimmed && "opacity-50")} aria-busy={dimmed}>
-      <TableHeader>
-        <TableRow>
-          <TableHead>
-            <SortHeader column="materialNumber" label="Material" />
-          </TableHead>
-          <TableHead>
-            <SortHeader column="description" label="Description" />
-          </TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Manufacturer / MPN</TableHead>
-          <TableHead>Plant</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>UoM</TableHead>
-          <TableHead className="text-right">
-            <SortHeader column="unitPrice" label="Unit price" />
-          </TableHead>
-          <TableHead className="text-right">
-            <SortHeader column="stockOnHand" label="Stock" />
-          </TableHead>
-          <TableHead>
-            <SortHeader column="updatedAt" label="Last updated" />
-          </TableHead>
-        </TableRow>
-      </TableHeader>
+      <MaterialsTableHeader table={table} />
       <TableBody>
-        {rows.map((row) => (
+        {table.getRowModel().rows.map((row) => (
           <TableRow key={row.id}>
-            <TableCell className="font-mono text-xs">{row.materialNumber}</TableCell>
-            <TableCell className="max-w-xs truncate" title={row.description}>
-              {row.description}
-            </TableCell>
-            <TableCell>{materialTypeLabels[row.type]}</TableCell>
-            <TableCell>
-              <div>{row.manufacturerName}</div>
-              <div className="font-mono text-xs text-muted-foreground">{row.mpn}</div>
-            </TableCell>
-            <TableCell>
-              {row.plantCode} · {row.plantName}
-            </TableCell>
-            <TableCell>
-              <Badge variant={statusVariant[row.status]}>{materialStatusLabels[row.status]}</Badge>
-            </TableCell>
-            <TableCell>{row.unitOfMeasure}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatPrice(row.unitPrice)}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatStock(row.stockOnHand)}
-            </TableCell>
-            <TableCell>{formatDate(row.updatedAt)}</TableCell>
+            {row.getAllCells().map((cell) => {
+              const meta = cell.column.columnDef.meta;
+              return (
+                <TableCell
+                  key={cell.id}
+                  className={cn(meta?.align === "right" && "text-right", meta?.cellClassName)}
+                  title={meta?.cellTitle?.(row.original)}
+                >
+                  <table.FlexRender cell={cell} />
+                </TableCell>
+              );
+            })}
           </TableRow>
         ))}
       </TableBody>
