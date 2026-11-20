@@ -67,7 +67,7 @@ importers:
         specifier: ^5.108.0
         version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-table':
-        specifier: 9.3.1
+        specifier: ^9.3.1
         version: 9.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@trpc/client':
         specifier: ^11.29.4

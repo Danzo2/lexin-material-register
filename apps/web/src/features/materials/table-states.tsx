@@ -4,29 +4,16 @@ import { Button } from "@/components/ui/button.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table.tsx";
 import { cn } from "@/lib/utils.ts";
-import { MaterialsTableHeader, useMaterialsTable, type MaterialRow } from "./materials-table.tsx";
+import type { MaterialRow } from "./material-columns.tsx";
+import { MaterialsTableHeader, useMaterialsTable } from "./use-materials-table.tsx";
 
 const SKELETON_ROWS = 10;
 // Module-level so the table sees the same empty array on every render.
 const noRows: MaterialRow[] = [];
 
-// Placeholder widths per column id, roughly the width of typical content, so
-// nothing jumps when the first page arrives.
-const cellWidths: Partial<Record<string, string>> = {
-  materialNumber: "w-20",
-  description: "w-48",
-  type: "w-20",
-  manufacturer: "w-24",
-  plant: "w-28",
-  status: "w-24",
-  unitOfMeasure: "w-8",
-  unitPrice: "w-16",
-  stockOnHand: "w-12",
-  updatedAt: "w-24",
-};
-
-// Uses the same column definitions as the real table, so the header and column
-// order can never drift apart.
+// Uses the same column definitions as the real table (headers, order, alignment
+// and placeholder widths), so the two can't drift apart and nothing jumps when
+// the first page arrives.
 export function TableSkeleton() {
   const table = useMaterialsTable(noRows);
   const columns = table.getAllLeafColumns();
@@ -42,7 +29,7 @@ export function TableSkeleton() {
                 <Skeleton
                   className={cn(
                     "my-0.5 h-4",
-                    cellWidths[column.id],
+                    column.columnDef.meta?.skeletonWidth,
                     column.columnDef.meta?.align === "right" && "ml-auto",
                   )}
                 />
