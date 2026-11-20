@@ -127,6 +127,13 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **Correction:** Empty state keys off `total`; Retry refetches all active queries; the transport message is hidden; the todo became two real tests (filtered total past the end, and the brief's demo query); filter toggles apply to the latest URL state.
 - **Lesson:** Run an end-to-end check after merging parallel slices, not only per ticket.
 
+## 2026-11-20 · T10 · Claude Code
+
+- **What went wrong:** The first pass moved `SortHeader` onto TanStack Table's column API but missed that the loading skeleton in `table-states.tsx` kept its own hand-written copy of the column headers, still calling the old `SortHeader` props.
+- **How it was caught:** `pnpm typecheck`, straight after the change.
+- **Correction:** The skeleton now renders its header and column order from the same TanStack column definitions as the real table, so the duplicate list is gone rather than patched.
+- **Lesson:** Before changing a component's props, search for every caller. A second copy of the same list is a sign the abstraction is missing.
+
 ## 2026-11-20 · T11 · Claude Code
 
 - **What went wrong:** The first `docker compose stop db` for the restart check did nothing. In a git worktree the folder name differs, so Compose used a different project name, found no `db` container, and the "before / during / after" requests all returned 200, which looked like a pass.
