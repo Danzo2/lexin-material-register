@@ -192,7 +192,12 @@ Execution: 6.4 ms
 
 - **Material–plant split.** A `materials` master (number, description, type, manufacturer, MPN) plus a `material_plants` table (plant, status, stock, price), as in SAP. Then one part stocked at three plants is one material, and search runs over far fewer rows.
 - **Detail and edit view.** Click a row to see and edit one material, validated with the same shared zod schemas.
-- **Natural-language filters.** Turn "obsolete bearings in Brisbane" into the existing `MaterialListInput` with an LLM and a zod-validated structured output. Because the URL is already the state, the result is just a link.
+- **Natural-language filters, with evals.** Turn "obsolete bearings in Brisbane" into the existing `MaterialListInput` with an LLM (for example a free OpenRouter model) using structured output. Because the URL is already the state, the result is just a link the user can check and edit. How I'd make it trustworthy:
+  - **The contract is the schema.** The model's output is parsed with the same `materialListInput` zod schema the API uses, so invalid output is rejected rather than half-applied.
+  - **A labelled dataset.** About 50 real-world queries with the expected filters, including ambiguous, adversarial and out-of-scope ones (for example "cheapest pump", which needs a sort, not a filter).
+  - **Deterministic evals.** The output is structured, so the scores are code: parse rate and per-field exact match (type, status, plant, manufacturer, search text). They run in CI on every prompt or model change, with a 20% held-out split so the prompt isn't tuned to the test set.
+  - **Tracing in production.** Each request is logged to Langfuse with its input, output and the filters the user actually kept, which feeds new labelled cases back into the dataset.
+  - **An LLM judge only where code can't score.** For open-ended output, such as a chat assistant that answers questions about the catalogue, I'd use a pass/fail judge calibrated against human labels and trust it only once it agrees with them on a held-out set.
 - **Cursor pagination** if the catalogue grows to millions of rows or needs infinite scroll.
 - **CSV export** of the current filtered view, streamed from the same query without the `limit`.
 - **Authentication** and per-plant permissions.
