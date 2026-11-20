@@ -126,3 +126,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** An independent verifier agent walked through the merged app in the browser against the brief.
 - **Correction:** Empty state keys off `total`; Retry refetches all active queries; the transport message is hidden; the todo became two real tests (filtered total past the end, and the brief's demo query); filter toggles apply to the latest URL state.
 - **Lesson:** Run an end-to-end check after merging parallel slices, not only per ticket.
+
+## 2026-11-20 · T11 · Claude Code
+
+- **What went wrong:** The first `docker compose stop db` for the restart check did nothing. In a git worktree the folder name differs, so Compose used a different project name, found no `db` container, and the "before / during / after" requests all returned 200, which looked like a pass.
+- **How it was caught:** `docker compose start db` then printed "service "db" has no container to start".
+- **Correction:** The check was re-run with `docker compose -p lexin-test stop db` / `start db`, targeting the container the API actually uses. With that, the old code crashed ("Unhandled 'error' event") and the fixed code stayed up.
+- **Lesson:** In a worktree, pass the main checkout's Compose project name (`-p`) when acting on the shared database, and confirm the command printed the container it touched before trusting the result.
