@@ -2,75 +2,52 @@ import type { ReactNode } from "react";
 import { CircleAlert, LoaderCircle, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table.tsx";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table.tsx";
 import { cn } from "@/lib/utils.ts";
-import { SortHeader } from "./sort-header.tsx";
+import { MaterialsTableHeader, useMaterialsTable, type MaterialRow } from "./materials-table.tsx";
 
 const SKELETON_ROWS = 10;
+// Module-level so the table sees the same empty array on every render.
+const noRows: MaterialRow[] = [];
 
-// One entry per column in materials-table.tsx, in the same order, so the
-// skeleton has the same header and roughly the same column widths as the
-// real table and nothing jumps when the first page arrives.
-const skeletonColumns = [
-  { key: "materialNumber", header: <SortHeader column="materialNumber" label="Material" /> },
-  { key: "description", header: <SortHeader column="description" label="Description" /> },
-  { key: "type", header: "Type" },
-  { key: "manufacturer", header: "Manufacturer / MPN" },
-  { key: "plant", header: "Plant" },
-  { key: "status", header: "Status" },
-  { key: "uom", header: "UoM" },
-  { key: "unitPrice", header: <SortHeader column="unitPrice" label="Unit price" />, right: true },
-  { key: "stock", header: <SortHeader column="stockOnHand" label="Stock" />, right: true },
-  { key: "updatedAt", header: <SortHeader column="updatedAt" label="Last updated" /> },
-] as const;
-
-// Placeholder widths per column, roughly the width of typical content.
-const cellWidths: Record<(typeof skeletonColumns)[number]["key"], string> = {
+// Placeholder widths per column id, roughly the width of typical content, so
+// nothing jumps when the first page arrives.
+const cellWidths: Partial<Record<string, string>> = {
   materialNumber: "w-20",
   description: "w-48",
   type: "w-20",
   manufacturer: "w-24",
   plant: "w-28",
   status: "w-24",
-  uom: "w-8",
+  unitOfMeasure: "w-8",
   unitPrice: "w-16",
-  stock: "w-12",
+  stockOnHand: "w-12",
   updatedAt: "w-24",
 };
 
+// Uses the same column definitions as the real table, so the header and column
+// order can never drift apart.
 export function TableSkeleton() {
+  const table = useMaterialsTable(noRows);
+  const columns = table.getAllLeafColumns();
+
   return (
     <Table aria-busy="true" aria-label="Loading materials">
-      <TableHeader>
-        <TableRow>
-          {skeletonColumns.map((column) => (
-            <TableHead key={column.key} className={cn("right" in column && "text-right")}>
-              {column.header}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
+      <MaterialsTableHeader table={table} />
       <TableBody>
         {Array.from({ length: SKELETON_ROWS }, (_, rowIndex) => (
           <TableRow key={rowIndex}>
-            {skeletonColumns.map((column) => (
-              <TableCell key={column.key}>
+            {columns.map((column) => (
+              <TableCell key={column.id}>
                 <Skeleton
                   className={cn(
                     "my-0.5 h-4",
-                    cellWidths[column.key],
-                    "right" in column && "ml-auto",
+                    cellWidths[column.id],
+                    column.columnDef.meta?.align === "right" && "ml-auto",
                   )}
                 />
                 {/* The real manufacturer cell has two lines (name, then MPN). */}
-                {column.key === "manufacturer" && <Skeleton className="mt-1 mb-0.5 h-3 w-16" />}
+                {column.id === "manufacturer" && <Skeleton className="mt-1 mb-0.5 h-3 w-16" />}
               </TableCell>
             ))}
           </TableRow>

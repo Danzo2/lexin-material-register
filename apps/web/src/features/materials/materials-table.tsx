@@ -1,7 +1,6 @@
-import { materialStatusLabels, materialTypeLabels, type MaterialStatus } from "@lexin/shared";
-import type { AppRouter } from "@lexin/api";
-import type { inferOutput, TRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import { Badge } from "@/components/ui/badge.tsx";
+import { sortColumns } from "@lexin/shared";
+import { useTable, type OnChangeFn, type SortingState } from "@tanstack/react-table";
+import { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -11,18 +10,75 @@ import {
   TableRow,
 } from "@/components/ui/table.tsx";
 import { cn } from "@/lib/utils.ts";
-import { formatDate, formatPrice, formatStock } from "./format.ts";
-import { SortHeader } from "./sort-header.tsx";
+import { materialColumns, materialTableFeatures, type MaterialRow } from "./material-columns.tsx";
+import { useListParams } from "./use-list-params.ts";
 
-export type MaterialRow = inferOutput<
-  TRPCOptionsProxy<AppRouter>["materials"]["list"]
->["rows"][number];
+export type { MaterialRow };
 
-const statusVariant: Record<MaterialStatus, "default" | "secondary" | "outline"> = {
-  active: "default",
-  pending_review: "secondary",
-  obsolete: "outline",
-};
+const ariaSortFor = { asc: "ascending", desc: "descending" } as const;
+
+/**
+ * TanStack Table in manual mode over one server page. The sort is read from the
+ * URL and header clicks write back to it (which also resets the page), so the
+ * URL stays the only copy of the table state.
+ */
+export function useMaterialsTable(rows: MaterialRow[]) {
+  const { params, setParams } = useListParams();
+
+  const sorting = useMemo<SortingState>(
+    () => [{ id: params.sort, desc: params.dir === "desc" }],
+    [params.sort, params.dir],
+  );
+
+  const onSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    const first = next[0];
+    const column = sortColumns.find((id) => id === first?.id);
+    if (!first || !column) return;
+    setParams({ sort: column, dir: first.desc ? "desc" : "asc" });
+  };
+
+  return useTable({
+    features: materialTableFeatures,
+    columns: materialColumns,
+    data: rows,
+    getRowId: (row) => String(row.id),
+    state: { sorting },
+    onSortingChange,
+    manualSorting: true,
+    enableMultiSort: false,
+    enableSortingRemoval: false,
+    sortDescFirst: false,
+  });
+}
+
+type MaterialsTableInstance = ReturnType<typeof useMaterialsTable>;
+
+/** Header row shared by the real table and the loading skeleton. */
+export function MaterialsTableHeader({ table }: { table: MaterialsTableInstance }) {
+  return (
+    <TableHeader>
+      {table.getHeaderGroups().map((group) => (
+        <TableRow key={group.id}>
+          {group.headers.map((header) => {
+            const dir = header.column.getIsSorted();
+            return (
+              <TableHead
+                key={header.id}
+                className={cn(header.column.columnDef.meta?.align === "right" && "text-right")}
+                aria-sort={
+                  header.column.getCanSort() ? (dir ? ariaSortFor[dir] : "none") : undefined
+                }
+              >
+                {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+              </TableHead>
+            );
+          })}
+        </TableRow>
+      ))}
+    </TableHeader>
+  );
+}
 
 interface MaterialsTableProps {
   rows: MaterialRow[];
@@ -31,56 +87,25 @@ interface MaterialsTableProps {
 }
 
 export function MaterialsTable({ rows, dimmed }: MaterialsTableProps) {
+  const table = useMaterialsTable(rows);
+
   return (
     <Table className={cn("transition-opacity", dimmed && "opacity-50")} aria-busy={dimmed}>
-      <TableHeader>
-        <TableRow>
-          <TableHead>
-            <SortHeader column="materialNumber" label="Material" />
-          </TableHead>
-          <TableHead>
-            <SortHeader column="description" label="Description" />
-          </TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Manufacturer / MPN</TableHead>
-          <TableHead>Plant</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>UoM</TableHead>
-          <TableHead className="text-right">
-            <SortHeader column="unitPrice" label="Unit price" />
-          </TableHead>
-          <TableHead className="text-right">
-            <SortHeader column="stockOnHand" label="Stock" />
-          </TableHead>
-          <TableHead>
-            <SortHeader column="updatedAt" label="Last updated" />
-          </TableHead>
-        </TableRow>
-      </TableHeader>
+      <MaterialsTableHeader table={table} />
       <TableBody>
-        {rows.map((row) => (
+        {table.getRowModel().rows.map((row) => (
           <TableRow key={row.id}>
-            <TableCell className="font-mono text-xs">{row.materialNumber}</TableCell>
-            <TableCell className="max-w-xs truncate" title={row.description}>
-              {row.description}
-            </TableCell>
-            <TableCell>{materialTypeLabels[row.type]}</TableCell>
-            <TableCell>
-              <div>{row.manufacturerName}</div>
-              <div className="font-mono text-xs text-muted-foreground">{row.mpn}</div>
-            </TableCell>
-            <TableCell>
-              {row.plantCode} · {row.plantName}
-            </TableCell>
-            <TableCell>
-              <Badge variant={statusVariant[row.status]}>{materialStatusLabels[row.status]}</Badge>
-            </TableCell>
-            <TableCell>{row.unitOfMeasure}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatPrice(row.unitPrice)}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatStock(row.stockOnHand)}
-            </TableCell>
-            <TableCell>{formatDate(row.updatedAt)}</TableCell>
+            {row.getAllCells().map((cell) => {
+              const meta = cell.column.columnDef.meta;
+              return (
+                <TableCell
+                  key={cell.id}
+                  className={cn(meta?.align === "right" && "text-right", meta?.cellClassName)}
+                >
+                  <table.FlexRender cell={cell} />
+                </TableCell>
+              );
+            })}
           </TableRow>
         ))}
       </TableBody>
