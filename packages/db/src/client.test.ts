@@ -6,9 +6,7 @@ afterEach(() => {
 });
 
 describe("createDb", () => {
-  // pg-pool re-emits errors from idle clients (e.g. Postgres restarting) on the
-  // pool. Without a listener Node throws "Unhandled 'error' event" and the API
-  // process exits.
+  // Without a listener, emitting 'error' throws: that is the API crash.
   it("survives an error from an idle pooled client", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     // No query runs, so the pool never connects to this address.
@@ -18,10 +16,11 @@ describe("createDb", () => {
       pool.emit("error", new Error("terminating connection due to administrator command")),
     ).not.toThrow();
 
-    expect(warn).toHaveBeenCalledOnce();
-    const message = String(warn.mock.calls[0]?.join(" "));
-    expect(message).toContain("terminating connection due to administrator command");
-    expect(message).not.toContain("secret");
+    // Exactly the error message: nothing from the pool's config, such as the
+    // connection string and its password, ends up in the log.
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "Postgres pool: idle client error: terminating connection due to administrator command",
+    );
 
     await pool.end();
   });
