@@ -2,7 +2,7 @@
 
 A full stack app for finding materials in a 10,000-row SAP-style maintenance catalogue: one search box, four filters, sortable columns and server-side pagination, with the whole table state in the URL.
 
-**Stack:** React Router v7 SPA · shadcn/ui (Tailwind v4) · TanStack Query · tRPC v11 · Node 22 + TypeScript · Drizzle ORM · PostgreSQL 17 (Docker Compose) · zod · Vitest · pnpm workspace.
+**Stack:** React Router v7 SPA · shadcn/ui (Tailwind v4) · TanStack Table · TanStack Query · tRPC v11 · Node 22 + TypeScript · Drizzle ORM · PostgreSQL 17 (Docker Compose) · zod · Vitest · pnpm workspace.
 
 ## Setup
 
@@ -38,7 +38,7 @@ The API tests need the Docker Postgres running (`docker compose up -d`). They ne
 ## Project layout
 
 ```
-apps/web         React Router v7 SPA: Vite, shadcn/ui, TanStack Query via @trpc/tanstack-react-query
+apps/web         React Router v7 SPA: Vite, shadcn/ui, TanStack Table, TanStack Query via @trpc/tanstack-react-query
   src/features/materials/   the page, table, search box, filters, sort headers, pagination, states
 apps/api         tRPC server on the standalone Node HTTP adapter
   src/materials/            list.ts, search.ts, filters.ts, sort.ts, options.ts, router.ts (+ tests)
@@ -113,6 +113,12 @@ The rule (from `AGENTS.md`) is that every filtered or sorted column gets an inde
 ### Per-run test databases
 
 The query tests run against real Postgres, not mocks, because the SQL _is_ the logic being tested. Each `pnpm test` run creates its own database (`material_register_test_<pid>`) on the Docker server, runs the migrations, loads a ~20-row hand-written fixture and drops it afterwards. That keeps the dev data untouched and let several agent worktrees run tests at the same time. Unit tests cover the shared schema (defaults, URL coercion, rejecting bad values, round-tripping), formatting and the seed builder.
+
+### Table: TanStack Table in manual mode
+
+The table is drawn with TanStack Table v9 over the shadcn `Table` components. `material-columns.tsx` defines every column once (header, cell, sortable or not, alignment), typed from the API's row type, and both the real table and the loading skeleton render from that list, so they can't drift apart.
+
+TanStack Table runs in manual mode: only its sorting feature is registered, with no sorted or paginated row model, and `manualSorting` is on. It cannot reorder or slice rows in the browser; it only knows which column is sorted. That sort is read from the URL, and a header click goes through `onSortingChange` back into the URL (resetting the page), so the URL is still the only copy of the table state and Postgres still does every sort. Pagination stays with the existing pagination bar, which reads and writes the URL directly, so no pagination state is given to the table. The library's value here is structure (one typed column list, `aria-sort` on the right `<th>`, and an easy path to column visibility, resizing or row selection), not speed.
 
 ### UX states
 

@@ -126,3 +126,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** An independent verifier agent walked through the merged app in the browser against the brief.
 - **Correction:** Empty state keys off `total`; Retry refetches all active queries; the transport message is hidden; the todo became two real tests (filtered total past the end, and the brief's demo query); filter toggles apply to the latest URL state.
 - **Lesson:** Run an end-to-end check after merging parallel slices, not only per ticket.
+
+## 2026-11-20 · T10 · Claude Code
+
+- **What went wrong:** The first pass moved `SortHeader` onto TanStack Table's column API but missed that the loading skeleton in `table-states.tsx` kept its own hand-written copy of the column headers, still calling the old `SortHeader` props.
+- **How it was caught:** `pnpm typecheck`, straight after the change.
+- **Correction:** The skeleton now renders its header and column order from the same TanStack column definitions as the real table, so the duplicate list is gone rather than patched.
+- **Lesson:** Before changing a component's props, search for every caller. A second copy of the same list is a sign the abstraction is missing.
