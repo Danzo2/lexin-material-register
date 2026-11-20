@@ -133,3 +133,10 @@ Every time an agent got something wrong and how it was corrected. This feeds the
 - **How it was caught:** `pnpm typecheck`, straight after the change.
 - **Correction:** The skeleton now renders its header and column order from the same TanStack column definitions as the real table, so the duplicate list is gone rather than patched.
 - **Lesson:** Before changing a component's props, search for every caller. A second copy of the same list is a sign the abstraction is missing.
+
+## 2026-11-20 · T11 · Claude Code
+
+- **What went wrong:** The first `docker compose stop db` for the restart check did nothing. In a git worktree the folder name differs, so Compose used a different project name, found no `db` container, and the "before / during / after" requests all returned 200, which looked like a pass.
+- **How it was caught:** `docker compose start db` then printed "service "db" has no container to start".
+- **Correction:** The check was re-run with `docker compose -p lexin-test stop db` / `start db`, targeting the container the API actually uses. With that, the old code crashed ("Unhandled 'error' event") and the fixed code stayed up.
+- **Lesson:** In a worktree, pass the main checkout's Compose project name (`-p`) when acting on the shared database, and confirm the command printed the container it touched before trusting the result.
