@@ -205,6 +205,10 @@ Execution: 6.4 ms
 
 ## How I used AI tools
 
+How I choose a way of building with AI, with the route this project took highlighted in blue: the Wayfinder skill pipeline (map, grill, spec, tickets, parallel sessions), then PR review and an independent Codex review before every merge. The source is [`docs/how-i-build-with-ai.drawio`](docs/how-i-build-with-ai.drawio).
+
+![How I build with AI: a decision flow that picks a method by the shape of the work, with the Wayfinder skill pipeline highlighted as the route used for the Material Register](docs/images/how-i-build-with-ai.svg)
+
 **Tools:** Claude Code (planning, implementation, reviews) and Codex (independent code review on every PR, plus computer use once). The agent instructions are in [`AGENTS.md`](AGENTS.md) and every mistake is in [`docs/ai-log.md`](docs/ai-log.md).
 
 **How the work was split.** I grilled a plan with Claude into a spec ([#1](https://github.com/Danzo2/lexin-material-register/issues/1)) with recorded decisions, then into tickets as GitHub issues, each with acceptance criteria and a list of files it may touch. A foundation ticket landed first with all the contracts (shared schemas, database schema, API and component stubs). Then an orchestrator session ran six ticket agents in parallel (sorting, filters, pagination, search, UX states, seed), each in its own git worktree and branch with its own dev-server ports and its own test database. Each agent ran `pnpm check`, did a browser check, opened a PR labelled `agent-assisted`, and ran `/code-review` and `codex review` before merging. All six slices merged within a few minutes of each other without conflicts, because no two tickets owned the same file.
